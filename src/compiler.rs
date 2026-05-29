@@ -28,7 +28,7 @@ fn weight_to_dxf(mm: f64) -> i16 {
 }
 
 /// Compile a full project (project.toml + .cf files) into a single DXF.
-pub fn compile_project(project_dir: &Path) -> Result<()> {
+pub fn compile_project(project_dir: &Path, layer_filter: Option<&str>) -> Result<()> {
     let project_path = project_dir.join("project.toml");
     let project = parse_project(&project_path)?;
 
@@ -39,8 +39,13 @@ pub fn compile_project(project_dir: &Path) -> Result<()> {
         writer.add_layer(name, 7);
     }
 
-    // Process each layer file
+    // Process each layer file (or just the filtered one)
     for (layer_name, entry) in &project.layers {
+        if let Some(filter) = layer_filter {
+            if layer_name != filter {
+                continue;
+            }
+        }
         let cf_path = project_dir.join(&entry.file);
         let cf = parse_cf(&cf_path)
             .with_context(|| format!("Failed to parse layer '{}'", layer_name))?;

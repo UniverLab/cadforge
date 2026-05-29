@@ -27,6 +27,9 @@ enum Commands {
         /// Project directory (defaults to current dir)
         #[arg(short, long)]
         path: Option<PathBuf>,
+        /// Compile only a specific layer
+        #[arg(short, long)]
+        layer: Option<String>,
     },
     /// Validate project without generating DXF
     Check {
@@ -47,9 +50,9 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::New { name } => create_project(&name, &PathBuf::from(".")),
-        Commands::Build { path } => {
+        Commands::Build { path, layer } => {
             let dir = resolve_project_dir(path)?;
-            compile_project(&dir)
+            compile_project(&dir, layer.as_deref())
         }
         Commands::Check { path } => {
             let dir = resolve_project_dir(path)?;

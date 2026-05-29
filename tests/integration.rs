@@ -12,7 +12,7 @@ fn compile_example_project_produces_valid_dxf() {
     // Remove previous output if exists
     let _ = fs::remove_file(&output);
 
-    compile_project(project_dir).unwrap();
+    compile_project(project_dir, None).unwrap();
 
     assert!(output.exists(), "output.dxf should be created");
 
@@ -42,7 +42,7 @@ fn compile_example_project_produces_valid_dxf() {
 
 #[test]
 fn compile_project_fails_on_missing_project_toml() {
-    let result = compile_project(Path::new("/tmp/nonexistent_cadforge_dir"));
+    let result = compile_project(Path::new("/tmp/nonexistent_cadforge_dir"), None);
     assert!(result.is_err());
 }
 

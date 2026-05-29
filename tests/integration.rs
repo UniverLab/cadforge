@@ -59,6 +59,7 @@ to = [1.0, 1.0]
 [[polyline]]
 points = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]
 closed = true
+weight = 0.35
 
 [[rect]]
 origin = [0.0, 0.0]
@@ -81,14 +82,22 @@ content = "Hello"
 
 [[point]]
 position = [3.0, 3.0]
+
+[[dim]]
+type = "linear"
+from = [0.0, 0.0]
+to = [8.5, 0.0]
+offset = 0.5
 "##;
 
     let cf: cadforge::model::CfFile = toml::from_str(toml).unwrap();
     assert_eq!(cf.lines.len(), 1);
     assert_eq!(cf.polylines.len(), 1);
+    assert!(cf.polylines[0].common.weight.is_some());
     assert_eq!(cf.rects.len(), 1);
     assert_eq!(cf.circles.len(), 1);
     assert_eq!(cf.arcs.len(), 1);
     assert_eq!(cf.texts.len(), 1);
     assert_eq!(cf.points.len(), 1);
+    assert_eq!(cf.dims.len(), 1);
 }

@@ -84,7 +84,8 @@ pub fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
     for poly in &cf.polylines {
         let layer = poly.common.layer.as_deref().unwrap_or(default_layer);
         let points: Vec<(f64, f64)> = poly.points.iter().map(|p| (p[0], p[1])).collect();
-        writer.polyline(&points, poly.closed, layer);
+        let lw = poly.common.weight.map(weight_to_dxf);
+        writer.polyline_styled(&points, poly.closed, layer, lw);
     }
 
     for rect in &cf.rects {
@@ -129,5 +130,17 @@ pub fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
     for point in &cf.points {
         let layer = point.common.layer.as_deref().unwrap_or(default_layer);
         writer.point(point.position[0], point.position[1], layer);
+    }
+
+    for dim in &cf.dims {
+        let layer = dim.common.layer.as_deref().unwrap_or(default_layer);
+        writer.dim_linear(
+            dim.from[0],
+            dim.from[1],
+            dim.to[0],
+            dim.to[1],
+            dim.offset,
+            layer,
+        );
     }
 }

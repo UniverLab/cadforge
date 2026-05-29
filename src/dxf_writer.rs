@@ -97,6 +97,17 @@ impl DxfWriter {
 
     /// Add a lightweight polyline from a list of (x, y) points.
     pub fn polyline(&mut self, points: &[(f64, f64)], closed: bool, layer: &str) {
+        self.polyline_styled(points, closed, layer, None);
+    }
+
+    /// Add a polyline with optional lineweight.
+    pub fn polyline_styled(
+        &mut self,
+        points: &[(f64, f64)],
+        closed: bool,
+        layer: &str,
+        lineweight: Option<i16>,
+    ) {
         let mut poly = LwPolyline {
             flags: i32::from(closed),
             ..Default::default()
@@ -110,6 +121,9 @@ impl DxfWriter {
         }
         let mut entity = Entity::new(EntityType::LwPolyline(poly));
         entity.common.layer = layer.to_string();
+        if let Some(lw) = lineweight {
+            entity.common.lineweight_enum_value = lw;
+        }
         self.drawing.add_entity(entity);
     }
 
@@ -144,6 +158,19 @@ impl DxfWriter {
             ..Default::default()
         };
         let mut entity = Entity::new(EntityType::ModelPoint(pt));
+        entity.common.layer = layer.to_string();
+        self.drawing.add_entity(entity);
+    }
+
+    /// Add a linear dimension between two points with an offset distance.
+    pub fn dim_linear(&mut self, x1: f64, y1: f64, x2: f64, y2: f64, offset: f64, layer: &str) {
+        let dim = dxf::entities::RotatedDimension {
+            definition_point_2: Point::new(x1, y1, 0.0),
+            definition_point_3: Point::new(x2, y2, 0.0),
+            insertion_point: Point::new((x1 + x2) / 2.0, y1 + offset, 0.0),
+            ..Default::default()
+        };
+        let mut entity = Entity::new(EntityType::RotatedDimension(dim));
         entity.common.layer = layer.to_string();
         self.drawing.add_entity(entity);
     }

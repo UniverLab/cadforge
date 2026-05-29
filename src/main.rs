@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use cadforge::compiler::compile_project;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
@@ -30,6 +30,13 @@ fn main() -> Result<()> {
     match cli.command {
         Commands::Build { path } => {
             let dir = path.unwrap_or_else(|| PathBuf::from("."));
+            let project_toml = dir.join("project.toml");
+            if !project_toml.exists() {
+                bail!(
+                    "No project.toml found in '{}'. Run `cadforge new` to create a project.",
+                    dir.display()
+                );
+            }
             compile_project(&dir)
         }
     }

@@ -1,0 +1,27 @@
+[layer]
+name = "puertas"
+color = "#00FF00"
+
+# Puerta sala (apertura 90°)
+[[arc]]
+id = "ar-puerta-sala"
+center = [4.0, 0.8]
+radius = 0.8
+from_angle = 0.0
+to_angle = 90.0
+
+# Puerta habitación
+[[arc]]
+id = "ar-puerta-hab"
+center = [4.0, 4.3]
+radius = 0.8
+from_angle = 90.0
+to_angle = 180.0
+
+# Puerta baño
+[[arc]]
+id = "ar-puerta-bano"
+center = [5.5, 3.5]
+radius = 0.7
+from_angle = 180.0
+to_angle = 270.0

@@ -1,0 +1,11 @@
+[project]
+name = "Vivienda Unifamiliar Lote 12"
+scale = "1:100"
+units = "m"
+author = "Arq. Demo"
+version = "0.1.0"
+
+[layers]
+muros = { file = "muros.cf", locked = false }
+puertas = { file = "puertas.cf", locked = false }
+mobiliario = { file = "mobiliario.cf", locked = false }

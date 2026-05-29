@@ -13,6 +13,13 @@ pub struct LineStyle {
     pub lineweight: i16,
 }
 
+/// Optional visual attributes for any entity.
+#[derive(Default)]
+pub struct EntityStyle {
+    pub color_24bit: Option<i32>,
+    pub lineweight: Option<i16>,
+}
+
 /// Builder for constructing a DXF drawing from primitives.
 pub struct DxfWriter {
     drawing: Drawing,
@@ -40,6 +47,28 @@ impl DxfWriter {
         let line = dxf::entities::Line::new(Point::new(x1, y1, 0.0), Point::new(x2, y2, 0.0));
         let mut entity = Entity::new(EntityType::Line(line));
         entity.common.layer = layer.to_string();
+        self.drawing.add_entity(entity);
+    }
+
+    /// Add a line with optional true color (24-bit).
+    pub fn line_colored(
+        &mut self,
+        x1: f64,
+        y1: f64,
+        x2: f64,
+        y2: f64,
+        layer: &str,
+        style: &EntityStyle,
+    ) {
+        let line = dxf::entities::Line::new(Point::new(x1, y1, 0.0), Point::new(x2, y2, 0.0));
+        let mut entity = Entity::new(EntityType::Line(line));
+        entity.common.layer = layer.to_string();
+        if let Some(c) = style.color_24bit {
+            entity.common.color_24_bit = c;
+        }
+        if let Some(lw) = style.lineweight {
+            entity.common.lineweight_enum_value = lw;
+        }
         self.drawing.add_entity(entity);
     }
 

@@ -1,13 +1,13 @@
 //! Compiler — transforms the intermediate model into a DXF file via DxfWriter.
 
-use crate::dxf_writer::{DxfWriter, LineStyle};
+use crate::dxf_writer::{DxfWriter, EntityStyle};
 use crate::model::CfFile;
 use crate::parser::{parse_cf, parse_project};
 use anyhow::{Context, Result};
 use std::path::Path;
 
 /// ACI color index from hex string (best-effort mapping).
-fn hex_to_aci(hex: &str) -> u8 {
+pub fn hex_to_aci(hex: &str) -> u8 {
     match hex.to_uppercase().trim_start_matches('#') {
         "FF0000" => 1, // red
         "FFFF00" => 2, // yellow
@@ -20,6 +20,12 @@ fn hex_to_aci(hex: &str) -> u8 {
         "C0C0C0" => 9, // light grey
         _ => 7,        // default white
     }
+}
+
+/// Convert hex color string to 24-bit integer for DXF true color.
+pub fn hex_to_24bit(hex: &str) -> i32 {
+    let hex = hex.trim_start_matches('#');
+    i32::from_str_radix(hex, 16).unwrap_or(0x00FF_FFFF)
 }
 
 /// Lineweight in mm → DXF lineweight enum value (hundredths of mm).
@@ -129,19 +135,22 @@ pub fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
 
     for line in &cf.lines {
         let layer = line.common.layer.as_deref().unwrap_or(default_layer);
-        match line.common.weight {
-            Some(w) => writer.line_styled(
+        let color = line.common.color.as_deref().map(hex_to_24bit);
+        let lw = line.common.weight.map(weight_to_dxf);
+        if color.is_some() || lw.is_some() {
+            writer.line_colored(
                 line.from[0],
                 line.from[1],
                 line.to[0],
                 line.to[1],
                 layer,
-                &LineStyle {
-                    color_index: 7,
-                    lineweight: weight_to_dxf(w),
+                &EntityStyle {
+                    color_24bit: color,
+                    lineweight: lw,
                 },
-            ),
-            None => writer.line(line.from[0], line.from[1], line.to[0], line.to[1], layer),
+            );
+        } else {
+            writer.line(line.from[0], line.from[1], line.to[0], line.to[1], layer);
         }
     }
 

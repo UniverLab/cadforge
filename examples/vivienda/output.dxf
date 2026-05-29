@@ -449,19 +449,19 @@ $SKPOLY
   9
 $TDCREATE
  40
-2461190.718310185242
+2461190.719409722369
   9
 $TDUCREATE
  40
-2461190.924050925765
+2461190.925150462892
   9
 $TDUPDATE
  40
-2461190.718310185242
+2461190.719409722369
   9
 $TDUUPDATE
  40
-2461190.924050925765
+2461190.925150462892
   9
 $TDINDWG
  40
@@ -509,7 +509,7 @@ $SPLINESEGS
   9
 $HANDSEED
   5
-17
+23
   9
 $SURFTAB1
  70
@@ -889,11 +889,11 @@ $PSTYLEMODE
   9
 $FINGERPRINTGUID
   2
-3d3eb8a7-6119-44cb-9e42-09743c24a2c9
+6e49ffd4-7308-4e97-8f37-24d7ae5d8293
   9
 $VERSIONGUID
   2
-a856e59c-7be4-40ea-9cd5-42ba26d0925b
+05268e67-5b39-4642-bbaf-a001d46e8570
   9
 $EXTNAMES
 290
@@ -1525,11 +1525,55 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
+mobiliario
+ 70
+     0
+ 62
+     5
+  6
+CONTINUOUS
+290
+1
+370
+     0
+390
+0
+  0
+LAYER
+  5
+1B
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
 muros
  70
      0
  62
      7
+  6
+CONTINUOUS
+290
+1
+370
+     0
+390
+0
+  0
+LAYER
+  5
+1F
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+puertas
+ 70
+     0
+ 62
+     3
   6
 CONTINUOUS
 290
@@ -1701,15 +1745,217 @@ SECTION
   2
 ENTITIES
   0
-LINE
+LWPOLYLINE
   5
 14
 100
 AcDbEntity
   8
+mobiliario
+370
+     0
+430
+
+440
+        0
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 10
+1.0
+ 20
+2.0
+ 10
+3.0
+ 20
+2.0
+ 10
+3.0
+ 20
+3.0
+ 10
+1.0
+ 20
+3.0
+  0
+LWPOLYLINE
+  5
+15
+100
+AcDbEntity
+  8
+mobiliario
+370
+     0
+430
+
+440
+        0
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 10
+5.0
+ 20
+4.2
+ 10
+7.0
+ 20
+4.2
+ 10
+7.0
+ 20
+5.7
+ 10
+5.0
+ 20
+5.7
+  0
+CIRCLE
+  5
+16
+100
+AcDbEntity
+  8
+mobiliario
+370
+     0
+430
+
+440
+        0
+100
+AcDbCircle
+ 10
+6.5
+ 20
+1.5
+ 30
+0.0
+ 40
+0.3
+  0
+CIRCLE
+  5
+17
+100
+AcDbEntity
+  8
+mobiliario
+370
+     0
+430
+
+440
+        0
+100
+AcDbCircle
+ 10
+7.5
+ 20
+1.5
+ 30
+0.0
+ 40
+0.25
+  0
+TEXT
+  5
+18
+100
+AcDbEntity
+  8
+mobiliario
+370
+     0
+430
+
+440
+        0
+100
+AcDbText
+ 10
+1.5
+ 20
+3.0
+ 30
+0.0
+ 40
+0.2
+  1
+SALA
+100
+AcDbText
+  0
+TEXT
+  5
+19
+100
+AcDbEntity
+  8
+mobiliario
+370
+     0
+430
+
+440
+        0
+100
+AcDbText
+ 10
+5.5
+ 20
+5.0
+ 30
+0.0
+ 40
+0.2
+  1
+HABITACION
+100
+AcDbText
+  0
+TEXT
+  5
+1A
+100
+AcDbEntity
+  8
+mobiliario
+370
+     0
+430
+
+440
+        0
+100
+AcDbText
+ 10
+5.8
+ 20
+1.8
+ 30
+0.0
+ 40
+0.15
+  1
+BANO
+100
+AcDbText
+  0
+LINE
+  5
+1C
+100
+AcDbEntity
+  8
 muros
- 62
-     7
 370
     35
 430
@@ -1733,13 +1979,11 @@ AcDbLine
   0
 LINE
   5
-15
+1D
 100
 AcDbEntity
   8
 muros
- 62
-     7
 370
     35
 430
@@ -1763,7 +2007,7 @@ AcDbLine
   0
 LWPOLYLINE
   5
-16
+1E
 100
 AcDbEntity
   8
@@ -1796,6 +2040,96 @@ AcDbPolyline
 0.0
  20
 6.0
+  0
+ARC
+  5
+20
+100
+AcDbEntity
+  8
+puertas
+370
+     0
+430
+
+440
+        0
+100
+AcDbCircle
+ 10
+4.0
+ 20
+0.8
+ 30
+0.0
+ 40
+0.8
+100
+AcDbArc
+ 50
+0.0
+ 51
+90.0
+  0
+ARC
+  5
+21
+100
+AcDbEntity
+  8
+puertas
+370
+     0
+430
+
+440
+        0
+100
+AcDbCircle
+ 10
+4.0
+ 20
+4.3
+ 30
+0.0
+ 40
+0.8
+100
+AcDbArc
+ 50
+90.0
+ 51
+180.0
+  0
+ARC
+  5
+22
+100
+AcDbEntity
+  8
+puertas
+370
+     0
+430
+
+440
+        0
+100
+AcDbCircle
+ 10
+5.5
+ 20
+3.5
+ 30
+0.0
+ 40
+0.7
+100
+AcDbArc
+ 50
+180.0
+ 51
+270.0
   0
 ENDSEC
   0

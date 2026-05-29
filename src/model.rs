@@ -159,6 +159,16 @@ pub struct CfGroup {
     pub common: CommonAttrs,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct CfFill {
+    /// Reference to a closed polyline or rect id, or inline points.
+    pub boundary: Option<String>,
+    /// Inline points (alternative to boundary reference).
+    pub points: Option<Vec<[f64; 2]>>,
+    #[serde(flatten)]
+    pub common: CommonAttrs,
+}
+
 // ── Layer-level metadata ───────────────────────────────────────────────
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -196,6 +206,8 @@ pub struct CfFile {
     pub dims: Vec<CfDim>,
     #[serde(default, rename = "hatch")]
     pub hatches: Vec<CfHatch>,
+    #[serde(default, rename = "fill")]
+    pub fills: Vec<CfFill>,
     #[serde(default, rename = "group")]
     pub groups: Vec<CfGroup>,
 }

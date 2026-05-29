@@ -221,6 +221,26 @@ impl DxfWriter {
         Ok(())
     }
 
+    /// Fill a polygon with solid color using DXF Solid entities (fan triangulation).
+    pub fn solid_fill(&mut self, points: &[(f64, f64)], layer: &str, style: &EntityStyle) {
+        if points.len() < 3 {
+            return;
+        }
+        // Fan triangulation from first vertex
+        let (ax, ay) = points[0];
+        for i in 1..points.len() - 1 {
+            let (bx, by) = points[i];
+            let (cx, cy) = points[i + 1];
+            let solid = dxf::entities::Solid::new(
+                Point::new(ax, ay, 0.0),
+                Point::new(bx, by, 0.0),
+                Point::new(cx, cy, 0.0),
+                Point::new(cx, cy, 0.0), // 4th = 3rd for triangle
+            );
+            self.add_entity(EntityType::Solid(solid), layer, style);
+        }
+    }
+
     /// Generate hatch pattern lines within a rectangular boundary.
     /// `boundary` is a list of (x,y) points forming a closed polygon.
     /// `angle` is in degrees, `spacing` is distance between lines.

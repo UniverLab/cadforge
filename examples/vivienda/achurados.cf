@@ -17,3 +17,9 @@ boundary = "pl-bano-boundary"
 pattern = "ansi31"
 scale = 2.0
 angle = 45.0
+
+# Relleno sólido de un área pequeña (closet)
+[[fill]]
+id = "fl-closet"
+points = [[0.0, 4.5], [1.5, 4.5], [1.5, 6.0], [0.0, 6.0]]
+color = "#808080"

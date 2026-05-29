@@ -133,6 +133,7 @@ fn entity_count(cf: &CfFile) -> usize {
         + cf.points.len()
         + cf.dims.len()
         + cf.hatches.len()
+        + cf.fills.len()
         + cf.groups.len()
 }
 
@@ -251,6 +252,24 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
 
         if let Some(boundary) = resolve_boundary(&e.boundary, cf) {
             writer.hatch(&boundary, e.angle, spacing, layer, &style);
+        }
+    }
+
+    // Solid fills
+    for e in &cf.fills {
+        let layer = resolve_layer(&e.common, default_layer);
+        let style = resolve_style(&e.common);
+
+        let pts = if let Some(ref boundary_id) = e.boundary {
+            resolve_boundary(boundary_id, cf)
+        } else {
+            e.points
+                .as_ref()
+                .map(|p| p.iter().map(|v| (v[0], v[1])).collect())
+        };
+
+        if let Some(pts) = pts {
+            writer.solid_fill(&pts, layer, &style);
         }
     }
 }

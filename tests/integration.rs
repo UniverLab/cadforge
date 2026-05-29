@@ -61,7 +61,7 @@ fn check_project_validates_without_generating_dxf() {
     let _ = std::fs::remove_file(&output);
 
     let count = check_project(project_dir).unwrap();
-    assert_eq!(count, 20);
+    assert_eq!(count, 21);
     assert!(!output.exists());
 }
 
@@ -169,4 +169,28 @@ angle = 45.0
     let mut writer = DxfWriter::new();
     writer.add_layer("test", 7);
     cadforge::compiler::compile_cf_public(&mut writer, &cf, "test");
+}
+
+#[test]
+fn solid_fill_generates_triangles() {
+    let toml = r##"
+[[fill]]
+id = "fl-room"
+points = [[0.0, 0.0], [4.0, 0.0], [4.0, 3.0], [0.0, 3.0]]
+color = "#808080"
+"##;
+
+    let cf: cadforge::model::CfFile = toml::from_str(toml).unwrap();
+    assert_eq!(cf.fills.len(), 1);
+
+    // Compile and verify it produces a DXF with SOLID entities
+    use cadforge::dxf_writer::DxfWriter;
+    let mut writer = DxfWriter::new();
+    writer.add_layer("test", 7);
+    cadforge::compiler::compile_cf_public(&mut writer, &cf, "test");
+
+    let path = std::path::PathBuf::from("/tmp/cadforge_test_fill.dxf");
+    writer.save(&path).unwrap();
+    let content = fs::read_to_string(&path).unwrap();
+    assert!(content.contains("SOLID"));
 }

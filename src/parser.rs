@@ -2,8 +2,8 @@
 
 use crate::model::CfFile;
 use anyhow::{Context, Result};
+use indexmap::IndexMap;
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::path::Path;
 
 // ── project.toml structures ────────────────────────────────────────────
@@ -11,7 +11,7 @@ use std::path::Path;
 #[derive(Debug, Clone, Deserialize)]
 pub struct ProjectFile {
     pub project: ProjectMeta,
-    pub layers: HashMap<String, LayerEntry>,
+    pub layers: IndexMap<String, LayerEntry>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

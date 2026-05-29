@@ -31,6 +31,8 @@ fn compile_example_project_produces_valid_dxf() {
     assert!(content.contains("muros"));
     assert!(content.contains("puertas"));
     assert!(content.contains("mobiliario"));
+    assert!(content.contains("cotas"));
+    assert!(content.contains("achurados"));
 
     // Verify entity types exist
     assert!(content.contains("LWPOLYLINE"));
@@ -38,6 +40,10 @@ fn compile_example_project_produces_valid_dxf() {
     assert!(content.contains("ARC"));
     assert!(content.contains("CIRCLE"));
     assert!(content.contains("TEXT"));
+
+    // Verify line types are registered
+    assert!(content.contains("DASHED"));
+    assert!(content.contains("DASHDOT"));
 }
 
 #[test]
@@ -55,7 +61,7 @@ fn check_project_validates_without_generating_dxf() {
     let _ = std::fs::remove_file(&output);
 
     let count = check_project(project_dir).unwrap();
-    assert_eq!(count, 13);
+    assert_eq!(count, 20);
     assert!(!output.exists());
 }
 
@@ -113,4 +119,54 @@ offset = 0.5
     assert_eq!(cf.texts.len(), 1);
     assert_eq!(cf.points.len(), 1);
     assert_eq!(cf.dims.len(), 1);
+}
+
+#[test]
+fn line_styles_parsed_and_compiled() {
+    let toml = r##"
+[[line]]
+from = [0.0, 0.0]
+to = [10.0, 0.0]
+style = "dashed"
+
+[[line]]
+from = [0.0, 1.0]
+to = [10.0, 1.0]
+style = "dotted"
+
+[[line]]
+from = [0.0, 2.0]
+to = [10.0, 2.0]
+style = "dashdot"
+"##;
+
+    let cf: cadforge::model::CfFile = toml::from_str(toml).unwrap();
+    assert_eq!(cf.lines.len(), 3);
+    assert!(cf.lines[0].common.style.is_some());
+}
+
+#[test]
+fn hatch_resolves_boundary_from_polyline() {
+    let toml = r##"
+[[polyline]]
+id = "pl-room"
+points = [[0.0, 0.0], [4.0, 0.0], [4.0, 3.0], [0.0, 3.0]]
+closed = true
+
+[[hatch]]
+boundary = "pl-room"
+pattern = "ansi31"
+scale = 1.0
+angle = 45.0
+"##;
+
+    let cf: cadforge::model::CfFile = toml::from_str(toml).unwrap();
+    assert_eq!(cf.hatches.len(), 1);
+    assert_eq!(cf.hatches[0].boundary, "pl-room");
+
+    // Compile it to verify no panic
+    use cadforge::dxf_writer::DxfWriter;
+    let mut writer = DxfWriter::new();
+    writer.add_layer("test", 7);
+    cadforge::compiler::compile_cf_public(&mut writer, &cf, "test");
 }

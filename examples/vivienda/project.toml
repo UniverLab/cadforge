@@ -9,3 +9,5 @@ version = "0.1.0"
 muros = { file = "muros.cf", locked = false }
 puertas = { file = "puertas.cf", locked = false }
 mobiliario = { file = "mobiliario.cf", locked = false }
+cotas = { file = "cotas.cf", locked = false }
+achurados = { file = "achurados.cf", locked = false }

@@ -2,7 +2,7 @@
 
 use crate::color::{hex_to_24bit, hex_to_aci, weight_to_dxf};
 use crate::dxf_writer::{DxfWriter, EntityStyle};
-use crate::model::{CfFile, CommonAttrs};
+use crate::model::{CfFile, CommonAttrs, LineStyle};
 use crate::parser::{parse_cf, parse_project, LayerEntry};
 use anyhow::{Context, Result};
 use std::path::Path;
@@ -13,6 +13,16 @@ fn resolve_style(common: &CommonAttrs) -> EntityStyle {
     EntityStyle {
         color_24bit: common.color.as_deref().map(hex_to_24bit),
         lineweight: common.weight.map(weight_to_dxf),
+        line_type: common.style.as_ref().map(line_style_to_dxf_name),
+    }
+}
+
+fn line_style_to_dxf_name(style: &LineStyle) -> String {
+    match style {
+        LineStyle::Solid => "CONTINUOUS".to_string(),
+        LineStyle::Dashed => "DASHED".to_string(),
+        LineStyle::Dotted => "DOTTED".to_string(),
+        LineStyle::Dashdot => "DASHDOT".to_string(),
     }
 }
 
@@ -126,6 +136,11 @@ fn entity_count(cf: &CfFile) -> usize {
         + cf.groups.len()
 }
 
+/// Compile a single .cf file into the DxfWriter (public for integration tests).
+pub fn compile_cf_public(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
+    compile_cf(writer, cf, default_layer);
+}
+
 /// Compile a single .cf file into the DxfWriter.
 fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
     if let Some(meta) = &cf.layer_meta {
@@ -227,4 +242,38 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
             &style,
         );
     }
+
+    // Hatches: resolve boundary by id, generate pattern lines
+    for e in &cf.hatches {
+        let layer = resolve_layer(&e.common, default_layer);
+        let style = resolve_style(&e.common);
+        let spacing = 0.1 * e.scale; // base spacing scaled
+
+        if let Some(boundary) = resolve_boundary(&e.boundary, cf) {
+            writer.hatch(&boundary, e.angle, spacing, layer, &style);
+        }
+    }
+}
+
+/// Resolve a boundary id to a list of (x,y) points from polylines or rects in the file.
+fn resolve_boundary(id: &str, cf: &CfFile) -> Option<Vec<(f64, f64)>> {
+    // Search polylines
+    for poly in &cf.polylines {
+        if poly.common.id.as_deref() == Some(id) && poly.closed {
+            return Some(poly.points.iter().map(|p| (p[0], p[1])).collect());
+        }
+    }
+    // Search rects
+    for rect in &cf.rects {
+        if rect.common.id.as_deref() == Some(id) {
+            let (x, y) = (rect.origin[0], rect.origin[1]);
+            return Some(vec![
+                (x, y),
+                (x + rect.width, y),
+                (x + rect.width, y + rect.height),
+                (x, y + rect.height),
+            ]);
+        }
+    }
+    None
 }

@@ -1,0 +1,43 @@
+[layer]
+name = "cotas"
+color = "#FF0000"
+
+# Cota horizontal del perímetro
+[[dim]]
+id = "dm-ancho"
+type = "linear"
+from = [0.0, 0.0]
+to = [8.5, 0.0]
+offset = -0.8
+
+# Cota vertical del perímetro
+[[dim]]
+id = "dm-alto"
+type = "linear"
+from = [0.0, 0.0]
+to = [0.0, 6.0]
+offset = -0.8
+
+# Cota de la sala (ancho)
+[[dim]]
+id = "dm-sala"
+type = "linear"
+from = [0.0, 0.0]
+to = [4.0, 0.0]
+offset = -0.5
+
+# Línea de referencia dashed
+[[line]]
+id = "ln-ref-1"
+from = [0.0, 3.0]
+to = [8.5, 3.0]
+style = "dashed"
+color = "#808080"
+
+# Línea de eje dashdot
+[[line]]
+id = "ln-eje"
+from = [4.25, 0.0]
+to = [4.25, 6.0]
+style = "dashdot"
+color = "#00FFFF"

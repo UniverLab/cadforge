@@ -1,0 +1,19 @@
+[layer]
+name = "achurados"
+color = "#C0C0C0"
+
+# Achurado del baño (referencia al rectángulo del baño)
+# Primero definimos el boundary como polyline cerrada
+[[polyline]]
+id = "pl-bano-boundary"
+points = [[4.0, 0.0], [8.5, 0.0], [8.5, 3.5], [4.0, 3.5]]
+closed = true
+style = "dotted"
+
+# Achurado sobre el boundary
+[[hatch]]
+id = "ht-bano"
+boundary = "pl-bano-boundary"
+pattern = "ansi31"
+scale = 2.0
+angle = 45.0

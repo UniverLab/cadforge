@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use cadforge::compiler::{check_project, compile_project, list_layers};
-use cadforge::scaffold::create_project;
+use cadforge::scaffold::{create_project, init_project};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -22,6 +22,8 @@ enum Commands {
         /// Project name (creates a directory with this name)
         name: String,
     },
+    /// Initialize CADforge in the current directory
+    Init,
     /// Compile project (.cf files) → DXF output
     Build {
         /// Project directory (defaults to current dir)
@@ -50,6 +52,7 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::New { name } => create_project(&name, &PathBuf::from(".")),
+        Commands::Init => init_project(&PathBuf::from(".")),
         Commands::Build { path, layer } => {
             let dir = resolve_project_dir(path)?;
             compile_project(&dir, layer.as_deref())

@@ -449,19 +449,19 @@ $SKPOLY
   9
 $TDCREATE
  40
-2461190.719872685149
+2461190.720833333209
   9
 $TDUCREATE
  40
-2461190.925613426138
+2461190.926574074198
   9
 $TDUPDATE
  40
-2461190.719872685149
+2461190.720833333209
   9
 $TDUUPDATE
  40
-2461190.925613426138
+2461190.926574074198
   9
 $TDINDWG
  40
@@ -889,11 +889,11 @@ $PSTYLEMODE
   9
 $FINGERPRINTGUID
   2
-9dd85e12-4243-456a-8d10-a00e0133358a
+bbf10906-aecc-4b07-b6d7-2b6365f7de50
   9
 $VERSIONGUID
   2
-7e5cbb21-428f-4129-b15a-7682d7fa2aa1
+ae2ae11b-5968-454a-92be-3bc3060fe658
   9
 $EXTNAMES
 290
@@ -1459,7 +1459,7 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-muros
+puertas
  70
      0
  62
@@ -1481,7 +1481,7 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-puertas
+muros
  70
      0
  62
@@ -1525,11 +1525,11 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-muros
+puertas
  70
      0
  62
-     7
+     3
   6
 CONTINUOUS
 290
@@ -1547,11 +1547,11 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-puertas
+muros
  70
      0
  62
-     3
+     7
   6
 CONTINUOUS
 290
@@ -1745,9 +1745,99 @@ SECTION
   2
 ENTITIES
   0
-LINE
+ARC
   5
 14
+100
+AcDbEntity
+  8
+puertas
+370
+     0
+430
+
+440
+        0
+100
+AcDbCircle
+ 10
+4.0
+ 20
+0.8
+ 30
+0.0
+ 40
+0.8
+100
+AcDbArc
+ 50
+0.0
+ 51
+90.0
+  0
+ARC
+  5
+15
+100
+AcDbEntity
+  8
+puertas
+370
+     0
+430
+
+440
+        0
+100
+AcDbCircle
+ 10
+4.0
+ 20
+4.3
+ 30
+0.0
+ 40
+0.8
+100
+AcDbArc
+ 50
+90.0
+ 51
+180.0
+  0
+ARC
+  5
+16
+100
+AcDbEntity
+  8
+puertas
+370
+     0
+430
+
+440
+        0
+100
+AcDbCircle
+ 10
+5.5
+ 20
+3.5
+ 30
+0.0
+ 40
+0.7
+100
+AcDbArc
+ 50
+180.0
+ 51
+270.0
+  0
+LINE
+  5
+18
 100
 AcDbEntity
   8
@@ -1775,7 +1865,7 @@ AcDbLine
   0
 LINE
   5
-15
+19
 100
 AcDbEntity
   8
@@ -1803,7 +1893,7 @@ AcDbLine
   0
 LWPOLYLINE
   5
-16
+1A
 100
 AcDbEntity
   8
@@ -1836,96 +1926,6 @@ AcDbPolyline
 0.0
  20
 6.0
-  0
-ARC
-  5
-18
-100
-AcDbEntity
-  8
-puertas
-370
-     0
-430
-
-440
-        0
-100
-AcDbCircle
- 10
-4.0
- 20
-0.8
- 30
-0.0
- 40
-0.8
-100
-AcDbArc
- 50
-0.0
- 51
-90.0
-  0
-ARC
-  5
-19
-100
-AcDbEntity
-  8
-puertas
-370
-     0
-430
-
-440
-        0
-100
-AcDbCircle
- 10
-4.0
- 20
-4.3
- 30
-0.0
- 40
-0.8
-100
-AcDbArc
- 50
-90.0
- 51
-180.0
-  0
-ARC
-  5
-1A
-100
-AcDbEntity
-  8
-puertas
-370
-     0
-430
-
-440
-        0
-100
-AcDbCircle
- 10
-5.5
- 20
-3.5
- 30
-0.0
- 40
-0.7
-100
-AcDbArc
- 50
-180.0
- 51
-270.0
   0
 LWPOLYLINE
   5

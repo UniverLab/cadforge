@@ -12,7 +12,36 @@ pub fn create_project(name: &str, parent: &Path) -> Result<()> {
     }
 
     fs::create_dir_all(&project_dir)?;
+    write_project_files(&project_dir, name)?;
 
+    println!("✓ Project '{}' created at {}", name, project_dir.display());
+    println!("  → project.toml");
+    println!("  → planta.cf");
+    println!("  → .gitignore");
+    println!("\n  Run `cadforge build --path {}` to compile.", name);
+    Ok(())
+}
+
+/// Initialize a CADforge project in the current directory.
+pub fn init_project(dir: &Path) -> Result<()> {
+    if dir.join("project.toml").exists() {
+        bail!("project.toml already exists in '{}'", dir.display());
+    }
+
+    let name = dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("project");
+    write_project_files(dir, name)?;
+
+    println!("✓ Initialized CADforge project in {}", dir.display());
+    println!("  → project.toml");
+    println!("  → planta.cf");
+    println!("  → .gitignore");
+    Ok(())
+}
+
+fn write_project_files(project_dir: &Path, name: &str) -> Result<()> {
     let project_toml = format!(
         r#"[project]
 name = "{name}"
@@ -38,12 +67,6 @@ from = [0.0, 0.0]
 to = [10.0, 0.0]
 "##;
     fs::write(project_dir.join("planta.cf"), planta_cf)?;
-
-    println!("✓ Project '{}' created at {}", name, project_dir.display());
-    println!("  → project.toml");
-    println!("  → planta.cf");
-    println!("  → .gitignore");
-    println!("\n  Run `cadforge build --path {}` to compile.", name);
     Ok(())
 }
 
@@ -83,6 +106,34 @@ mod tests {
         fs::create_dir_all(tmp.join("existing")).unwrap();
 
         let result = create_project("existing", &tmp);
+        assert!(result.is_err());
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn init_in_existing_dir() {
+        let tmp = PathBuf::from("/tmp/cadforge_test_init");
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+
+        init_project(&tmp).unwrap();
+
+        assert!(tmp.join("project.toml").exists());
+        assert!(tmp.join("planta.cf").exists());
+        assert!(tmp.join(".gitignore").exists());
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn init_fails_if_project_exists() {
+        let tmp = PathBuf::from("/tmp/cadforge_test_init_exists");
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+        fs::write(tmp.join("project.toml"), "").unwrap();
+
+        let result = init_project(&tmp);
         assert!(result.is_err());
 
         let _ = fs::remove_dir_all(&tmp);

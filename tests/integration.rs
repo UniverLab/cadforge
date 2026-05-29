@@ -47,6 +47,19 @@ fn compile_project_fails_on_missing_project_toml() {
 }
 
 #[test]
+fn check_project_validates_without_generating_dxf() {
+    use cadforge::compiler::check_project;
+
+    let project_dir = Path::new("examples/vivienda");
+    let output = project_dir.join("check_should_not_exist.dxf");
+    let _ = std::fs::remove_file(&output);
+
+    let count = check_project(project_dir).unwrap();
+    assert_eq!(count, 13);
+    assert!(!output.exists());
+}
+
+#[test]
 fn parser_handles_all_primitives() {
     let toml = r##"
 [layer]

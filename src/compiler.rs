@@ -35,9 +35,8 @@ pub fn compile_project(project_dir: &Path) -> Result<()> {
     let mut writer = DxfWriter::new();
 
     // Register layers
-    for (name, entry) in &project.layers {
-        let _ = entry; // locked is informational for now
-        writer.add_layer(name, 7); // default white, overridden by layer meta
+    for name in project.layers.keys() {
+        writer.add_layer(name, 7);
     }
 
     // Process each layer file
@@ -52,6 +51,42 @@ pub fn compile_project(project_dir: &Path) -> Result<()> {
     writer.save(&output)?;
     println!("✓ DXF generado: {}", output.display());
     Ok(())
+}
+
+/// Validate a project without generating DXF output.
+/// Returns the total number of entities found across all layers.
+pub fn check_project(project_dir: &Path) -> Result<usize> {
+    let project_path = project_dir.join("project.toml");
+    let project = parse_project(&project_path)?;
+
+    let mut total_entities = 0;
+
+    for (layer_name, entry) in &project.layers {
+        let cf_path = project_dir.join(&entry.file);
+        let cf = parse_cf(&cf_path)
+            .with_context(|| format!("Failed to parse layer '{}'", layer_name))?;
+
+        let count = cf.lines.len()
+            + cf.polylines.len()
+            + cf.rects.len()
+            + cf.circles.len()
+            + cf.arcs.len()
+            + cf.texts.len()
+            + cf.points.len()
+            + cf.dims.len()
+            + cf.hatches.len()
+            + cf.groups.len();
+
+        println!("  ✓ {} — {} entities", entry.file, count);
+        total_entities += count;
+    }
+
+    println!(
+        "✓ Project valid: {} layers, {} total entities",
+        project.layers.len(),
+        total_entities
+    );
+    Ok(total_entities)
 }
 
 /// Compile a single .cf file into the DxfWriter.

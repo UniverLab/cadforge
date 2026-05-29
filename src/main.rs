@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use cadforge::compiler::compile_project;
+use cadforge::compiler::{check_project, compile_project};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -22,6 +22,12 @@ enum Commands {
         #[arg(short, long)]
         path: Option<PathBuf>,
     },
+    /// Validate project without generating DXF
+    Check {
+        /// Project directory (defaults to current dir)
+        #[arg(short, long)]
+        path: Option<PathBuf>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -29,15 +35,24 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::Build { path } => {
-            let dir = path.unwrap_or_else(|| PathBuf::from("."));
-            let project_toml = dir.join("project.toml");
-            if !project_toml.exists() {
-                bail!(
-                    "No project.toml found in '{}'. Run `cadforge new` to create a project.",
-                    dir.display()
-                );
-            }
+            let dir = resolve_project_dir(path)?;
             compile_project(&dir)
         }
+        Commands::Check { path } => {
+            let dir = resolve_project_dir(path)?;
+            check_project(&dir)?;
+            Ok(())
+        }
     }
+}
+
+fn resolve_project_dir(path: Option<PathBuf>) -> Result<PathBuf> {
+    let dir = path.unwrap_or_else(|| PathBuf::from("."));
+    if !dir.join("project.toml").exists() {
+        bail!(
+            "No project.toml found in '{}'. Run `cadforge new` to create a project.",
+            dir.display()
+        );
+    }
+    Ok(dir)
 }

@@ -449,19 +449,19 @@ $SKPOLY
   9
 $TDCREATE
  40
-2461190.719409722369
+2461190.719872685149
   9
 $TDUCREATE
  40
-2461190.925150462892
+2461190.925613426138
   9
 $TDUPDATE
  40
-2461190.719409722369
+2461190.719872685149
   9
 $TDUUPDATE
  40
-2461190.925150462892
+2461190.925613426138
   9
 $TDINDWG
  40
@@ -889,11 +889,11 @@ $PSTYLEMODE
   9
 $FINGERPRINTGUID
   2
-6e49ffd4-7308-4e97-8f37-24d7ae5d8293
+9dd85e12-4243-456a-8d10-a00e0133358a
   9
 $VERSIONGUID
   2
-05268e67-5b39-4642-bbaf-a001d46e8570
+7e5cbb21-428f-4129-b15a-7682d7fa2aa1
   9
 $EXTNAMES
 290
@@ -1459,7 +1459,7 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-mobiliario
+muros
  70
      0
  62
@@ -1481,7 +1481,7 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-muros
+puertas
  70
      0
  62
@@ -1503,7 +1503,7 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-puertas
+mobiliario
  70
      0
  62
@@ -1525,11 +1525,33 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-mobiliario
+muros
  70
      0
  62
-     5
+     7
+  6
+CONTINUOUS
+290
+1
+370
+     0
+390
+0
+  0
+LAYER
+  5
+17
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+puertas
+ 70
+     0
+ 62
+     3
   6
 CONTINUOUS
 290
@@ -1547,33 +1569,11 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-muros
+mobiliario
  70
      0
  62
-     7
-  6
-CONTINUOUS
-290
-1
-370
-     0
-390
-0
-  0
-LAYER
-  5
-1F
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-puertas
- 70
-     0
- 62
-     3
+     5
   6
 CONTINUOUS
 290
@@ -1745,213 +1745,9 @@ SECTION
   2
 ENTITIES
   0
-LWPOLYLINE
-  5
-14
-100
-AcDbEntity
-  8
-mobiliario
-370
-     0
-430
-
-440
-        0
-100
-AcDbPolyline
- 90
-        4
- 70
-     1
- 10
-1.0
- 20
-2.0
- 10
-3.0
- 20
-2.0
- 10
-3.0
- 20
-3.0
- 10
-1.0
- 20
-3.0
-  0
-LWPOLYLINE
-  5
-15
-100
-AcDbEntity
-  8
-mobiliario
-370
-     0
-430
-
-440
-        0
-100
-AcDbPolyline
- 90
-        4
- 70
-     1
- 10
-5.0
- 20
-4.2
- 10
-7.0
- 20
-4.2
- 10
-7.0
- 20
-5.7
- 10
-5.0
- 20
-5.7
-  0
-CIRCLE
-  5
-16
-100
-AcDbEntity
-  8
-mobiliario
-370
-     0
-430
-
-440
-        0
-100
-AcDbCircle
- 10
-6.5
- 20
-1.5
- 30
-0.0
- 40
-0.3
-  0
-CIRCLE
-  5
-17
-100
-AcDbEntity
-  8
-mobiliario
-370
-     0
-430
-
-440
-        0
-100
-AcDbCircle
- 10
-7.5
- 20
-1.5
- 30
-0.0
- 40
-0.25
-  0
-TEXT
-  5
-18
-100
-AcDbEntity
-  8
-mobiliario
-370
-     0
-430
-
-440
-        0
-100
-AcDbText
- 10
-1.5
- 20
-3.0
- 30
-0.0
- 40
-0.2
-  1
-SALA
-100
-AcDbText
-  0
-TEXT
-  5
-19
-100
-AcDbEntity
-  8
-mobiliario
-370
-     0
-430
-
-440
-        0
-100
-AcDbText
- 10
-5.5
- 20
-5.0
- 30
-0.0
- 40
-0.2
-  1
-HABITACION
-100
-AcDbText
-  0
-TEXT
-  5
-1A
-100
-AcDbEntity
-  8
-mobiliario
-370
-     0
-430
-
-440
-        0
-100
-AcDbText
- 10
-5.8
- 20
-1.8
- 30
-0.0
- 40
-0.15
-  1
-BANO
-100
-AcDbText
-  0
 LINE
   5
-1C
+14
 100
 AcDbEntity
   8
@@ -1979,7 +1775,7 @@ AcDbLine
   0
 LINE
   5
-1D
+15
 100
 AcDbEntity
   8
@@ -2007,7 +1803,7 @@ AcDbLine
   0
 LWPOLYLINE
   5
-1E
+16
 100
 AcDbEntity
   8
@@ -2043,7 +1839,7 @@ AcDbPolyline
   0
 ARC
   5
-20
+18
 100
 AcDbEntity
   8
@@ -2073,7 +1869,7 @@ AcDbArc
   0
 ARC
   5
-21
+19
 100
 AcDbEntity
   8
@@ -2103,7 +1899,7 @@ AcDbArc
   0
 ARC
   5
-22
+1A
 100
 AcDbEntity
   8
@@ -2130,6 +1926,210 @@ AcDbArc
 180.0
  51
 270.0
+  0
+LWPOLYLINE
+  5
+1C
+100
+AcDbEntity
+  8
+mobiliario
+370
+     0
+430
+
+440
+        0
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 10
+1.0
+ 20
+2.0
+ 10
+3.0
+ 20
+2.0
+ 10
+3.0
+ 20
+3.0
+ 10
+1.0
+ 20
+3.0
+  0
+LWPOLYLINE
+  5
+1D
+100
+AcDbEntity
+  8
+mobiliario
+370
+     0
+430
+
+440
+        0
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 10
+5.0
+ 20
+4.2
+ 10
+7.0
+ 20
+4.2
+ 10
+7.0
+ 20
+5.7
+ 10
+5.0
+ 20
+5.7
+  0
+CIRCLE
+  5
+1E
+100
+AcDbEntity
+  8
+mobiliario
+370
+     0
+430
+
+440
+        0
+100
+AcDbCircle
+ 10
+6.5
+ 20
+1.5
+ 30
+0.0
+ 40
+0.3
+  0
+CIRCLE
+  5
+1F
+100
+AcDbEntity
+  8
+mobiliario
+370
+     0
+430
+
+440
+        0
+100
+AcDbCircle
+ 10
+7.5
+ 20
+1.5
+ 30
+0.0
+ 40
+0.25
+  0
+TEXT
+  5
+20
+100
+AcDbEntity
+  8
+mobiliario
+370
+     0
+430
+
+440
+        0
+100
+AcDbText
+ 10
+1.5
+ 20
+3.0
+ 30
+0.0
+ 40
+0.2
+  1
+SALA
+100
+AcDbText
+  0
+TEXT
+  5
+21
+100
+AcDbEntity
+  8
+mobiliario
+370
+     0
+430
+
+440
+        0
+100
+AcDbText
+ 10
+5.5
+ 20
+5.0
+ 30
+0.0
+ 40
+0.2
+  1
+HABITACION
+100
+AcDbText
+  0
+TEXT
+  5
+22
+100
+AcDbEntity
+  8
+mobiliario
+370
+     0
+430
+
+440
+        0
+100
+AcDbText
+ 10
+5.8
+ 20
+1.8
+ 30
+0.0
+ 40
+0.15
+  1
+BANO
+100
+AcDbText
   0
 ENDSEC
   0

@@ -25,6 +25,9 @@ planta = {{ file = "planta.cf", locked = false }}
     );
     fs::write(project_dir.join("project.toml"), project_toml)?;
 
+    let gitignore = "# CADforge output\noutput.dxf\n\n# Rust build artifacts\ntarget/\n";
+    fs::write(project_dir.join(".gitignore"), gitignore)?;
+
     let planta_cf = r##"[layer]
 name = "planta"
 color = "#FFFFFF"
@@ -39,6 +42,7 @@ to = [10.0, 0.0]
     println!("✓ Project '{}' created at {}", name, project_dir.display());
     println!("  → project.toml");
     println!("  → planta.cf");
+    println!("  → .gitignore");
     println!("\n  Run `cadforge build --path {}` to compile.", name);
     Ok(())
 }
@@ -59,10 +63,15 @@ mod tests {
         let project_dir = tmp.join("mi-proyecto");
         assert!(project_dir.join("project.toml").exists());
         assert!(project_dir.join("planta.cf").exists());
+        assert!(project_dir.join(".gitignore").exists());
 
         let content = fs::read_to_string(project_dir.join("project.toml")).unwrap();
         assert!(content.contains("mi-proyecto"));
         assert!(content.contains("planta.cf"));
+
+        let gitignore = fs::read_to_string(project_dir.join(".gitignore")).unwrap();
+        assert!(gitignore.contains("output.dxf"));
+        assert!(gitignore.contains("target/"));
 
         let _ = fs::remove_dir_all(&tmp);
     }

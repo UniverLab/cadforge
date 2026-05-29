@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use cadforge::compiler::{check_project, compile_project};
+use cadforge::scaffold::create_project;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -16,6 +17,11 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Create a new CADforge project
+    New {
+        /// Project name (creates a directory with this name)
+        name: String,
+    },
     /// Compile project (.cf files) → DXF output
     Build {
         /// Project directory (defaults to current dir)
@@ -34,6 +40,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::New { name } => create_project(&name, &PathBuf::from(".")),
         Commands::Build { path } => {
             let dir = resolve_project_dir(path)?;
             compile_project(&dir)

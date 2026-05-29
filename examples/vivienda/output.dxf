@@ -449,19 +449,19 @@ $SKPOLY
   9
 $TDCREATE
  40
-2461190.715972222388
+2461190.716643518303
   9
 $TDUCREATE
  40
-2461190.921712962911
+2461190.922384259291
   9
 $TDUPDATE
  40
-2461190.715972222388
+2461190.716643518303
   9
 $TDUUPDATE
  40
-2461190.921712962911
+2461190.922384259291
   9
 $TDINDWG
  40
@@ -889,11 +889,11 @@ $PSTYLEMODE
   9
 $FINGERPRINTGUID
   2
-be9f7f57-07c5-4a58-9b97-01fc1952e26d
+f0c483c9-ba7c-4414-bc7f-17091323b5d1
   9
 $VERSIONGUID
   2
-d7a36432-71ac-4f4e-8c75-a359dbf59063
+814a6619-3f5b-431a-88b7-74a1288b3a4b
   9
 $EXTNAMES
 290
@@ -1481,7 +1481,7 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-puertas
+muros
  70
      0
  62
@@ -1503,7 +1503,7 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-muros
+puertas
  70
      0
  62
@@ -1547,11 +1547,11 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-puertas
+muros
  70
      0
  62
-     3
+     7
   6
 CONTINUOUS
 290
@@ -1569,11 +1569,11 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-muros
+puertas
  70
      0
  62
-     7
+     3
   6
 CONTINUOUS
 290
@@ -1949,99 +1949,9 @@ BANO
 100
 AcDbText
   0
-ARC
-  5
-1C
-100
-AcDbEntity
-  8
-puertas
-370
-     0
-430
-
-440
-        0
-100
-AcDbCircle
- 10
-4.0
- 20
-0.8
- 30
-0.0
- 40
-0.8
-100
-AcDbArc
- 50
-0.0
- 51
-90.0
-  0
-ARC
-  5
-1D
-100
-AcDbEntity
-  8
-puertas
-370
-     0
-430
-
-440
-        0
-100
-AcDbCircle
- 10
-4.0
- 20
-4.3
- 30
-0.0
- 40
-0.8
-100
-AcDbArc
- 50
-90.0
- 51
-180.0
-  0
-ARC
-  5
-1E
-100
-AcDbEntity
-  8
-puertas
-370
-     0
-430
-
-440
-        0
-100
-AcDbCircle
- 10
-5.5
- 20
-3.5
- 30
-0.0
- 40
-0.7
-100
-AcDbArc
- 50
-180.0
- 51
-270.0
-  0
 LINE
   5
-20
+1C
 100
 AcDbEntity
   8
@@ -2071,7 +1981,7 @@ AcDbLine
   0
 LINE
   5
-21
+1D
 100
 AcDbEntity
   8
@@ -2101,7 +2011,7 @@ AcDbLine
   0
 LWPOLYLINE
   5
-22
+1E
 100
 AcDbEntity
   8
@@ -2134,6 +2044,96 @@ AcDbPolyline
 0.0
  20
 6.0
+  0
+ARC
+  5
+20
+100
+AcDbEntity
+  8
+puertas
+370
+     0
+430
+
+440
+        0
+100
+AcDbCircle
+ 10
+4.0
+ 20
+0.8
+ 30
+0.0
+ 40
+0.8
+100
+AcDbArc
+ 50
+0.0
+ 51
+90.0
+  0
+ARC
+  5
+21
+100
+AcDbEntity
+  8
+puertas
+370
+     0
+430
+
+440
+        0
+100
+AcDbCircle
+ 10
+4.0
+ 20
+4.3
+ 30
+0.0
+ 40
+0.8
+100
+AcDbArc
+ 50
+90.0
+ 51
+180.0
+  0
+ARC
+  5
+22
+100
+AcDbEntity
+  8
+puertas
+370
+     0
+430
+
+440
+        0
+100
+AcDbCircle
+ 10
+5.5
+ 20
+3.5
+ 30
+0.0
+ 40
+0.7
+100
+AcDbArc
+ 50
+180.0
+ 51
+270.0
   0
 ENDSEC
   0

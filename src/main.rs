@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use cadforge::compiler::{check_project, compile_project};
+use cadforge::compiler::{check_project, compile_project, list_layers};
 use cadforge::scaffold::create_project;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
@@ -34,6 +34,12 @@ enum Commands {
         #[arg(short, long)]
         path: Option<PathBuf>,
     },
+    /// List project layers with status
+    Layers {
+        /// Project directory (defaults to current dir)
+        #[arg(short, long)]
+        path: Option<PathBuf>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -49,6 +55,10 @@ fn main() -> Result<()> {
             let dir = resolve_project_dir(path)?;
             check_project(&dir)?;
             Ok(())
+        }
+        Commands::Layers { path } => {
+            let dir = resolve_project_dir(path)?;
+            list_layers(&dir)
         }
     }
 }

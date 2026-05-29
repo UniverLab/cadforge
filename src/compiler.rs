@@ -66,17 +66,7 @@ pub fn check_project(project_dir: &Path) -> Result<usize> {
         let cf = parse_cf(&cf_path)
             .with_context(|| format!("Failed to parse layer '{}'", layer_name))?;
 
-        let count = cf.lines.len()
-            + cf.polylines.len()
-            + cf.rects.len()
-            + cf.circles.len()
-            + cf.arcs.len()
-            + cf.texts.len()
-            + cf.points.len()
-            + cf.dims.len()
-            + cf.hatches.len()
-            + cf.groups.len();
-
+        let count = entity_count(&cf);
         println!("  ✓ {} — {} entities", entry.file, count);
         total_entities += count;
     }
@@ -87,6 +77,40 @@ pub fn check_project(project_dir: &Path) -> Result<usize> {
         total_entities
     );
     Ok(total_entities)
+}
+
+/// List layers in a project with their status.
+pub fn list_layers(project_dir: &Path) -> Result<()> {
+    let project_path = project_dir.join("project.toml");
+    let project = parse_project(&project_path)?;
+
+    println!("Project: {}", project.project.name);
+    println!("Layers:");
+    for (name, entry) in &project.layers {
+        let cf_path = project_dir.join(&entry.file);
+        let status = if cf_path.exists() {
+            let cf = parse_cf(&cf_path)?;
+            format!("{} entities", entity_count(&cf))
+        } else {
+            "⚠ file missing".to_string()
+        };
+        let lock = if entry.locked { " [locked]" } else { "" };
+        println!("  {} → {} ({}){}", name, entry.file, status, lock);
+    }
+    Ok(())
+}
+
+fn entity_count(cf: &CfFile) -> usize {
+    cf.lines.len()
+        + cf.polylines.len()
+        + cf.rects.len()
+        + cf.circles.len()
+        + cf.arcs.len()
+        + cf.texts.len()
+        + cf.points.len()
+        + cf.dims.len()
+        + cf.hatches.len()
+        + cf.groups.len()
 }
 
 /// Compile a single .cf file into the DxfWriter.

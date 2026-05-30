@@ -1,5 +1,6 @@
 //! Preview — renders project to PNG + metadata JSON for multimodal AI agents.
 
+use crate::compiler::resolve_boundary;
 use crate::model::{CfFile, CommonAttrs};
 use crate::parser::{parse_cf, parse_project};
 use anyhow::{Context, Result};
@@ -207,6 +208,35 @@ impl Renderer {
         }
     }
 
+    fn fill_polygon(&mut self, points: &[(f64, f64)], color: Color) {
+        let Some((first, rest)) = points.split_first() else {
+            return;
+        };
+        let mut pb = PathBuilder::new();
+        let (px, py) = self.world_to_px(first.0, first.1);
+        pb.move_to(px, py);
+        for &(x, y) in rest {
+            let (px, py) = self.world_to_px(x, y);
+            pb.line_to(px, py);
+        }
+        pb.close();
+        if let Some(path) = pb.finish() {
+            let mut paint = Paint::default();
+            // Semi-transparent fill so underlying geometry stays visible
+            paint.set_color(
+                Color::from_rgba(color.red(), color.green(), color.blue(), 0.35).unwrap(),
+            );
+            paint.anti_alias = true;
+            self.pixmap.fill_path(
+                &path,
+                &paint,
+                tiny_skia::FillRule::Winding,
+                Transform::identity(),
+                None,
+            );
+        }
+    }
+
     fn save_png(&self, path: &Path) -> Result<()> {
         self.pixmap
             .save_png(path)
@@ -401,7 +431,37 @@ fn render_layer(
         count += 1;
     }
 
+    // Solid fills — render as semi-transparent filled polygons
+    for e in &cf.fills {
+        let pts = fill_points(e, cf);
+        if let Some(pts) = pts {
+            r.fill_polygon(&pts, color);
+            out.push(r.entity_info(&e.common, "fill", layer, points_bounds(&pts)));
+            count += 1;
+        }
+    }
+
+    // Hatches — render boundary outline (pattern detail omitted in preview)
+    for e in &cf.hatches {
+        if let Some(pts) = resolve_boundary(&e.boundary, cf) {
+            r.draw_polyline(&pts, true, color, 1.0);
+            out.push(r.entity_info(&e.common, "hatch", layer, points_bounds(&pts)));
+            count += 1;
+        }
+    }
+
     count
+}
+
+/// Resolve a fill's geometry from inline points or a boundary reference.
+fn fill_points(e: &crate::model::CfFill, cf: &CfFile) -> Option<Vec<(f64, f64)>> {
+    if let Some(boundary_id) = &e.boundary {
+        resolve_boundary(boundary_id, cf)
+    } else {
+        e.points
+            .as_ref()
+            .map(|p| p.iter().map(|v| (v[0], v[1])).collect())
+    }
 }
 
 // ── Geometry helpers ─────────────────────────────────────────────────────
@@ -444,6 +504,13 @@ fn compute_bounds(layers: &[(String, CfFile)]) -> WorldBounds {
         }
         for e in &cf.texts {
             b.add(e.position[0], e.position[1]);
+        }
+        for e in &cf.fills {
+            if let Some(points) = &e.points {
+                for p in points {
+                    b.add(p[0], p[1]);
+                }
+            }
         }
     }
 

@@ -275,7 +275,7 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
 }
 
 /// Resolve a boundary id to a list of (x,y) points from polylines or rects in the file.
-fn resolve_boundary(id: &str, cf: &CfFile) -> Option<Vec<(f64, f64)>> {
+pub fn resolve_boundary(id: &str, cf: &CfFile) -> Option<Vec<(f64, f64)>> {
     // Search polylines
     for poly in &cf.polylines {
         if poly.common.id.as_deref() == Some(id) && poly.closed {

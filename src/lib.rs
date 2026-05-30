@@ -7,4 +7,5 @@ pub mod compiler;
 pub mod dxf_writer;
 pub mod model;
 pub mod parser;
+pub mod preview;
 pub mod scaffold;

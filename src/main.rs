@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use cadforge::compiler::{check_project, compile_project, list_layers};
+use cadforge::preview::generate_preview;
 use cadforge::scaffold::{create_project, init_project};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
@@ -45,6 +46,12 @@ enum Commands {
         #[arg(short, long)]
         path: Option<PathBuf>,
     },
+    /// Generate PNG preview + metadata JSON for AI agents
+    Preview {
+        /// Project directory (defaults to current dir)
+        #[arg(short, long)]
+        path: Option<PathBuf>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -65,6 +72,10 @@ fn main() -> Result<()> {
         Commands::Layers { path } => {
             let dir = resolve_project_dir(path)?;
             list_layers(&dir)
+        }
+        Commands::Preview { path } => {
+            let dir = resolve_project_dir(path)?;
+            generate_preview(&dir)
         }
     }
 }

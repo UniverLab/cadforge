@@ -8,16 +8,16 @@ use std::path::Path;
 #[test]
 fn compile_example_project_produces_valid_dxf() {
     let project_dir = Path::new("examples/vivienda");
-    let output = project_dir.join("output.dxf");
+    let output = Path::new("/tmp/cadforge_compile_test_output.dxf");
 
     // Remove previous output if exists
-    let _ = fs::remove_file(&output);
+    let _ = fs::remove_file(output);
 
-    compile_project(project_dir, None, None).unwrap();
+    compile_project(project_dir, None, Some(output)).unwrap();
 
     assert!(output.exists(), "output.dxf should be created");
 
-    let content = fs::read_to_string(&output).unwrap();
+    let content = fs::read_to_string(output).unwrap();
 
     // Verify DXF structure
     assert!(content.contains("SECTION"));

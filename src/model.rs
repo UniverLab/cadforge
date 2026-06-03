@@ -10,6 +10,7 @@ pub struct CommonAttrs {
     pub weight: Option<f64>,
     pub style: Option<LineStyle>,
     pub layer: Option<String>,
+    pub belongs_to: Option<String>,
     #[serde(default = "default_true")]
     pub visible: bool,
     #[serde(default)]

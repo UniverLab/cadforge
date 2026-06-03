@@ -3,9 +3,52 @@
 use crate::color::{hex_to_24bit, hex_to_aci, weight_to_dxf};
 use crate::dxf_writer::{DxfWriter, EntityStyle};
 use crate::model::{CfFile, CommonAttrs, LineStyle};
-use crate::parser::{parse_cf, parse_project, LayerEntry};
-use anyhow::{Context, Result};
+use crate::parser::{parse_cf, parse_project, LayerEntry, ProjectFile};
+use anyhow::{bail, Context, Result};
+use indexmap::IndexMap;
+use std::collections::HashSet;
 use std::path::Path;
+
+#[derive(Debug, Clone, Copy)]
+struct Bounds {
+    min_x: f64,
+    min_y: f64,
+    max_x: f64,
+    max_y: f64,
+}
+
+impl Bounds {
+    fn new(x: f64, y: f64) -> Self {
+        Self {
+            min_x: x,
+            min_y: y,
+            max_x: x,
+            max_y: y,
+        }
+    }
+
+    fn include_point(&mut self, x: f64, y: f64) {
+        self.min_x = self.min_x.min(x);
+        self.min_y = self.min_y.min(y);
+        self.max_x = self.max_x.max(x);
+        self.max_y = self.max_y.max(y);
+    }
+
+    fn contains(&self, other: &Bounds) -> bool {
+        other.min_x >= self.min_x
+            && other.min_y >= self.min_y
+            && other.max_x <= self.max_x
+            && other.max_y <= self.max_y
+    }
+}
+
+#[derive(Default)]
+struct ConstraintRules {
+    parent: Vec<(String, String)>,
+    belongs_to: Vec<(String, String)>,
+    spatial_dependency: Vec<(String, String)>,
+    strict: bool,
+}
 
 // ── Style resolution (DRY: one place to convert CommonAttrs → EntityStyle) ──
 
@@ -30,28 +73,250 @@ fn resolve_layer<'a>(common: &'a CommonAttrs, default: &'a str) -> &'a str {
     common.layer.as_deref().unwrap_or(default)
 }
 
-// ── Layer iteration (DRY: shared between compile/check/list) ────────────
-
-struct LayerVisitor<'a> {
-    project_dir: &'a Path,
+fn load_layers(
+    project_dir: &Path,
+    layers: &IndexMap<String, LayerEntry>,
+) -> Result<IndexMap<String, CfFile>> {
+    let mut loaded = IndexMap::with_capacity(layers.len());
+    for (name, entry) in layers {
+        let cf_path = project_dir.join(&entry.file);
+        let cf = parse_cf(&cf_path).with_context(|| format!("Failed to parse layer '{}'", name))?;
+        loaded.insert(name.clone(), cf);
+    }
+    Ok(loaded)
 }
 
-impl<'a> LayerVisitor<'a> {
-    fn new(project_dir: &'a Path) -> Self {
-        Self { project_dir }
+fn extract_constraint_rules(project: &ProjectFile) -> ConstraintRules {
+    let mut rules = ConstraintRules::default();
+    let Some(toml::Value::Table(table)) = project.constraints.as_ref() else {
+        return rules;
+    };
+
+    for (key, value) in table {
+        if key == "strict" {
+            if let toml::Value::Boolean(strict) = value {
+                rules.strict = *strict;
+            }
+            continue;
+        }
+
+        if key.contains('→') {
+            if let toml::Value::String(kind) = value {
+                if kind == "spatial_dependency" {
+                    let mut parts = key.split('→').map(|s| s.trim().to_string());
+                    if let (Some(from), Some(to)) = (parts.next(), parts.next()) {
+                        rules.spatial_dependency.push((from, to));
+                    }
+                }
+            }
+            continue;
+        }
+
+        if let toml::Value::Table(child_rules) = value {
+            if let Some(toml::Value::String(parent)) = child_rules.get("parent") {
+                rules.parent.push((key.clone(), parent.clone()));
+            }
+            if let Some(toml::Value::String(parent)) = child_rules.get("belongs_to") {
+                rules.belongs_to.push((key.clone(), parent.clone()));
+            }
+        }
     }
 
-    fn visit_each<F>(&self, layers: &indexmap::IndexMap<String, LayerEntry>, mut f: F) -> Result<()>
-    where
-        F: FnMut(&str, &LayerEntry, &CfFile) -> Result<()>,
-    {
-        for (name, entry) in layers {
-            let cf_path = self.project_dir.join(&entry.file);
-            let cf =
-                parse_cf(&cf_path).with_context(|| format!("Failed to parse layer '{}'", name))?;
-            f(name, entry, &cf)?;
+    rules
+}
+
+fn layer_bbox(cf: &CfFile) -> Option<Bounds> {
+    let mut bounds: Option<Bounds> = None;
+    let mut include = |x: f64, y: f64| {
+        if let Some(b) = bounds.as_mut() {
+            b.include_point(x, y);
+        } else {
+            bounds = Some(Bounds::new(x, y));
         }
-        Ok(())
+    };
+
+    for e in &cf.lines {
+        include(e.from[0], e.from[1]);
+        include(e.to[0], e.to[1]);
+    }
+    for e in &cf.polylines {
+        for p in &e.points {
+            include(p[0], p[1]);
+        }
+    }
+    for e in &cf.rects {
+        include(e.origin[0], e.origin[1]);
+        include(e.origin[0] + e.width, e.origin[1] + e.height);
+    }
+    for e in &cf.circles {
+        include(e.center[0] - e.radius, e.center[1] - e.radius);
+        include(e.center[0] + e.radius, e.center[1] + e.radius);
+    }
+    for e in &cf.arcs {
+        include(e.center[0] - e.radius, e.center[1] - e.radius);
+        include(e.center[0] + e.radius, e.center[1] + e.radius);
+    }
+    for e in &cf.texts {
+        include(e.position[0], e.position[1]);
+    }
+    for e in &cf.points {
+        include(e.position[0], e.position[1]);
+    }
+    for e in &cf.dims {
+        include(e.from[0], e.from[1]);
+        include(e.to[0], e.to[1]);
+    }
+    for e in &cf.fills {
+        if let Some(points) = &e.points {
+            for p in points {
+                include(p[0], p[1]);
+            }
+        }
+    }
+
+    bounds
+}
+
+fn collect_layer_ids(cf: &CfFile) -> HashSet<String> {
+    let mut ids = HashSet::new();
+    for_each_common(cf, |common| {
+        if let Some(id) = &common.id {
+            ids.insert(id.clone());
+        }
+    });
+    ids
+}
+
+fn for_each_common(cf: &CfFile, mut f: impl FnMut(&CommonAttrs)) {
+    for e in &cf.lines {
+        f(&e.common);
+    }
+    for e in &cf.polylines {
+        f(&e.common);
+    }
+    for e in &cf.rects {
+        f(&e.common);
+    }
+    for e in &cf.circles {
+        f(&e.common);
+    }
+    for e in &cf.arcs {
+        f(&e.common);
+    }
+    for e in &cf.texts {
+        f(&e.common);
+    }
+    for e in &cf.points {
+        f(&e.common);
+    }
+    for e in &cf.dims {
+        f(&e.common);
+    }
+    for e in &cf.hatches {
+        f(&e.common);
+    }
+    for e in &cf.fills {
+        f(&e.common);
+    }
+    for e in &cf.groups {
+        f(&e.common);
+    }
+}
+
+fn validate_constraints(project: &ProjectFile, layers: &IndexMap<String, CfFile>) -> Vec<String> {
+    let rules = extract_constraint_rules(project);
+    let mut issues = Vec::new();
+
+    for (child, parent) in &rules.parent {
+        match (layers.get(child), layers.get(parent)) {
+            (Some(child_cf), Some(parent_cf)) => {
+                let child_bbox = layer_bbox(child_cf);
+                let parent_bbox = layer_bbox(parent_cf);
+                match (child_bbox, parent_bbox) {
+                    (Some(c), Some(p)) => {
+                        if !p.contains(&c) {
+                            issues.push(format!(
+                                "Layer '{}' violates parent='{}': child bbox [{:.2}, {:.2}]->[{:.2}, {:.2}] is outside parent bbox [{:.2}, {:.2}]->[{:.2}, {:.2}]",
+                                child, parent, c.min_x, c.min_y, c.max_x, c.max_y, p.min_x, p.min_y, p.max_x, p.max_y
+                            ));
+                        }
+                    }
+                    _ => {
+                        issues.push(format!(
+                            "Layer '{}' parent='{}' cannot be validated because one layer has no measurable geometry",
+                            child, parent
+                        ));
+                    }
+                }
+            }
+            _ => issues.push(format!(
+                "Invalid parent constraint: '{}' or '{}' layer does not exist",
+                child, parent
+            )),
+        }
+    }
+
+    for (child, parent) in &rules.belongs_to {
+        match (layers.get(child), layers.get(parent)) {
+            (Some(child_cf), Some(parent_cf)) => {
+                let parent_ids = collect_layer_ids(parent_cf);
+                let mut total = 0usize;
+                let mut referenced = 0usize;
+
+                for_each_common(child_cf, |common| {
+                    total += 1;
+                    if let Some(reference) = &common.belongs_to {
+                        referenced += 1;
+                        if !parent_ids.contains(reference) {
+                            issues.push(format!(
+                                "Layer '{}' has belongs_to='{}' but id does not exist in parent layer '{}'",
+                                child, reference, parent
+                            ));
+                        }
+                    }
+                });
+
+                if total > 0 && referenced == 0 {
+                    issues.push(format!(
+                        "Layer '{}' has belongs_to='{}' constraint but no primitives define belongs_to references",
+                        child, parent
+                    ));
+                }
+            }
+            _ => issues.push(format!(
+                "Invalid belongs_to constraint: '{}' or '{}' layer does not exist",
+                child, parent
+            )),
+        }
+    }
+
+    for (from, to) in &rules.spatial_dependency {
+        if layers.contains_key(from) && layers.contains_key(to) {
+            issues.push(format!(
+                "spatial_dependency '{}' -> '{}' registered; dynamic movement tracking is not implemented yet (warning only)",
+                from, to
+            ));
+        } else {
+            issues.push(format!(
+                "Invalid spatial_dependency '{}' -> '{}': one layer does not exist",
+                from, to
+            ));
+        }
+    }
+
+    issues
+}
+
+fn is_strict(project: &ProjectFile) -> bool {
+    project.project.strict || extract_constraint_rules(project).strict
+}
+
+fn print_constraint_issues(issues: &[String]) {
+    for issue in issues {
+        println!("warning CONSTRAINT VIOLATION");
+        println!("  Detail: {}", issue);
+        println!("  Action: build continues with warning (set strict = true to fail)");
+        println!();
     }
 }
 
@@ -66,35 +331,90 @@ pub fn compile_project(project_dir: &Path, layer_filter: Option<&str>) -> Result
         writer.add_layer(name, 7);
     }
 
-    let visitor = LayerVisitor::new(project_dir);
-    visitor.visit_each(&project.layers, |name, _entry, cf| {
-        if layer_filter.is_none_or(|f| f == name) {
-            compile_cf(&mut writer, cf, name);
+    let loaded_layers = load_layers(project_dir, &project.layers)?;
+    let issues = validate_constraints(&project, &loaded_layers);
+    let strict = is_strict(&project);
+    if !issues.is_empty() {
+        print_constraint_issues(&issues);
+        if strict {
+            bail!(
+                "Build blocked: {} constraint violation(s) with strict = true",
+                issues.len()
+            );
         }
-        Ok(())
-    })?;
+    }
 
-    let output = project_dir.join("output.dxf");
-    writer.save(&output)?;
-    println!("✓ DXF generado: {}", output.display());
+    let mut total_entities = 0usize;
+    let mut layer_stats: Vec<(String, usize)> = Vec::new();
+    for name in project.layers.keys() {
+        if layer_filter.is_none_or(|f| f == name) {
+            let cf = loaded_layers
+                .get(name)
+                .with_context(|| format!("Failed to load layer '{}'", name))?;
+            let count = entity_count(cf);
+            compile_cf(&mut writer, cf, name);
+            total_entities += count;
+            layer_stats.push((name.to_string(), count));
+        }
+    }
+
+    let output_path = project_dir.join("output.dxf");
+    writer.save(&output_path)?;
+    println!("✓ DXF generado: {}", output_path.display());
+    println!(
+        "  {} entidades en {} capas",
+        total_entities,
+        layer_stats.len()
+    );
+    for (name, count) in &layer_stats {
+        println!("    {}: {} entidades", name, count);
+    }
     Ok(())
 }
 
 /// Validate a project without generating DXF output.
 pub fn check_project(project_dir: &Path) -> Result<usize> {
     let project = parse_project(&project_dir.join("project.toml"))?;
-    let mut total = 0;
+    let loaded_layers = load_layers(project_dir, &project.layers)?;
+    let issues = validate_constraints(&project, &loaded_layers);
+    let strict = is_strict(&project);
+    let mut total = 0usize;
 
-    let visitor = LayerVisitor::new(project_dir);
-    visitor.visit_each(&project.layers, |_name, entry, cf| {
-        let count = entity_count(cf);
-        println!("  ✓ {} — {} entities", entry.file, count);
-        total += count;
-        Ok(())
-    })?;
-
+    println!("Project: {}", project.project.name);
     println!(
-        "✓ Project valid: {} layers, {} total entities",
+        "Scale: {}  Units: {}",
+        project.project.scale, project.project.units
+    );
+    println!();
+
+    for (name, entry) in &project.layers {
+        let cf = loaded_layers
+            .get(name)
+            .with_context(|| format!("Failed to load layer '{}'", name))?;
+        let count = entity_count(cf);
+        let color = cf
+            .layer_meta
+            .as_ref()
+            .and_then(|m| m.color.as_deref())
+            .unwrap_or("#FFFFFF");
+        println!("  ✓ {} — {} entities [{}]", entry.file, count, color);
+        total += count;
+    }
+
+    if !issues.is_empty() {
+        println!();
+        print_constraint_issues(&issues);
+        if strict {
+            bail!(
+                "Check failed: {} constraint violation(s) with strict = true",
+                issues.len()
+            );
+        }
+    }
+
+    println!();
+    println!(
+        "✓ Valid: {} layers, {} total entities",
         project.layers.len(),
         total
     );

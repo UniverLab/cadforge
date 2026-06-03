@@ -12,6 +12,8 @@ use std::path::Path;
 pub struct ProjectFile {
     pub project: ProjectMeta,
     pub layers: IndexMap<String, LayerEntry>,
+    #[serde(default)]
+    pub constraints: Option<toml::Value>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -21,6 +23,8 @@ pub struct ProjectMeta {
     pub scale: String,
     #[serde(default = "default_units")]
     pub units: String,
+    #[serde(default)]
+    pub strict: bool,
     pub author: Option<String>,
     pub version: Option<String>,
 }
@@ -52,7 +56,12 @@ pub fn parse_project(path: &Path) -> Result<ProjectFile> {
 pub fn parse_cf(path: &Path) -> Result<CfFile> {
     let content =
         std::fs::read_to_string(path).with_context(|| format!("Cannot read {}", path.display()))?;
-    toml::from_str(&content).with_context(|| format!("Invalid TOML in {}", path.display()))
+    toml::from_str(&content).with_context(|| {
+        format!(
+            "Invalid TOML in {}:\n  Check syntax: keys must be quoted, arrays use [[name]], tables use [name]",
+            path.display()
+        )
+    })
 }
 
 #[cfg(test)]
@@ -112,15 +121,25 @@ size = 14.0
 name = "Vivienda Unifamiliar"
 scale = "1:100"
 units = "m"
+strict = true
 author = "Arq. Test"
 
 [layers]
 muros = { file = "muros.cf", locked = false }
 puertas = { file = "puertas.cf", locked = false }
+
+[constraints]
+puertas.parent = "muros"
 "#;
         let proj: ProjectFile = toml::from_str(toml).unwrap();
         assert_eq!(proj.project.name, "Vivienda Unifamiliar");
+        assert!(proj.project.strict);
         assert_eq!(proj.layers.len(), 2);
         assert_eq!(proj.layers["muros"].file, "muros.cf");
+        assert!(proj
+            .constraints
+            .as_ref()
+            .and_then(|v| v.get("puertas"))
+            .is_some());
     }
 }

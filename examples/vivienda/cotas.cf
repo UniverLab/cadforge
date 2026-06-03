@@ -1,0 +1,79 @@
+[layer]
+name = "cotas"
+color = "#FF4444"
+
+# ── Cotas exteriores ────────────────────────────────────────
+
+[[dim]]
+id = "dm-ancho-total"
+type = "linear"
+from = [0.0, 0.0]
+to = [12.0, 0.0]
+offset = -1.2
+
+[[dim]]
+id = "dm-alto-total"
+type = "linear"
+from = [0.0, 0.0]
+to = [0.0, 9.0]
+offset = -1.2
+
+# ── Cotas interiores ───────────────────────────────────────
+
+[[dim]]
+id = "dm-sala-ancho"
+type = "linear"
+from = [5.0, 5.0]
+to = [12.0, 5.0]
+offset = 0.8
+
+[[dim]]
+id = "dm-sala-alto"
+type = "linear"
+from = [5.0, 5.0]
+to = [5.0, 9.0]
+offset = 0.6
+
+[[dim]]
+id = "dm-d1-ancho"
+type = "linear"
+from = [0.0, 5.0]
+to = [5.0, 5.0]
+offset = 0.8
+
+[[dim]]
+id = "dm-d2-ancho"
+type = "linear"
+from = [5.0, 0.0]
+to = [12.0, 0.0]
+offset = -0.6
+
+[[dim]]
+id = "dm-d2-alto"
+type = "linear"
+from = [5.0, 0.0]
+to = [5.0, 3.0]
+offset = 0.6
+
+[[dim]]
+id = "dm-bano-alto"
+type = "linear"
+from = [0.0, 3.0]
+to = [0.0, 5.0]
+offset = -0.6
+
+# ── Ejes de referencia ──────────────────────────────────────
+
+[[line]]
+id = "ln-eje-v"
+from = [6.0, -0.5]
+to = [6.0, 9.5]
+style = "dashdot"
+color = "#00CCCC"
+
+[[line]]
+id = "ln-eje-h"
+from = [-0.5, 5.0]
+to = [12.5, 5.0]
+style = "dashdot"
+color = "#00CCCC"

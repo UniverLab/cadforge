@@ -2,7 +2,17 @@ name: CI
 
 on:
   pull_request:
+  workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
   rust-ci:
+    name: Format, Lint & Test
     uses: UniverLab/workflows/.github/workflows/rust-ci.yml@main
+    with:
+      run-tests: true
+      run-clippy: true
+      check-fmt: true
+      publish-check: true
+      main-pr-checks: true

@@ -1,0 +1,78 @@
+[layer]
+name = "puertas"
+color = "#00CC44"
+
+# ── Puerta principal (entrada) ──────────────────────────────
+[[arc]]
+id = "ar-puerta-principal"
+center = [12.0, 5.8]
+radius = 0.9
+from_angle = 90.0
+to_angle = 180.0
+
+[[line]]
+id = "ln-puerta-principal"
+from = [12.0, 5.8]
+to = [12.0, 4.9]
+weight = 0.12
+style = "dashed"
+
+# ── Puerta dormitorio 1 ─────────────────────────────────────
+[[arc]]
+id = "ar-puerta-d1"
+center = [5.0, 7.0]
+radius = 0.8
+from_angle = 180.0
+to_angle = 270.0
+
+[[line]]
+id = "ln-puerta-d1"
+from = [5.0, 7.0]
+to = [4.2, 7.0]
+weight = 0.12
+style = "dashed"
+
+# ── Puerta bano ─────────────────────────────────────────────
+[[arc]]
+id = "ar-puerta-bano"
+center = [2.0, 4.0]
+radius = 0.7
+from_angle = 0.0
+to_angle = 90.0
+
+[[line]]
+id = "ln-puerta-bano"
+from = [2.0, 4.0]
+to = [2.7, 4.0]
+weight = 0.12
+style = "dashed"
+
+# ── Puerta dormitorio 2 ─────────────────────────────────────
+[[arc]]
+id = "ar-puerta-d2"
+center = [7.0, 3.0]
+radius = 0.8
+from_angle = 90.0
+to_angle = 180.0
+
+[[line]]
+id = "ln-puerta-d2"
+from = [7.0, 3.0]
+to = [7.0, 2.2]
+weight = 0.12
+style = "dashed"
+
+# ── Puerta cocina ───────────────────────────────────────────
+[[arc]]
+id = "ar-puerta-cocina"
+center = [8.0, 5.0]
+radius = 0.8
+from_angle = 0.0
+to_angle = 90.0
+
+[[line]]
+id = "ln-puerta-cocina"
+from = [8.0, 5.0]
+to = [8.8, 5.0]
+weight = 0.12
+style = "dashed"

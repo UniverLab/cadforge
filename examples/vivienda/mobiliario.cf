@@ -1,0 +1,168 @@
+[layer]
+name = "mobiliario"
+color = "#4488FF"
+
+# ── Sala ─────────────────────────────────────────────────────
+
+# Sofa
+[[rect]]
+id = "rc-sofa"
+origin = [6.0, 7.5]
+width = 3.0
+height = 1.0
+color = "#4488FF"
+
+# Mesa de centro
+[[rect]]
+id = "rc-mesa-centro"
+origin = [7.0, 6.5]
+width = 1.5
+height = 0.8
+color = "#66AAFF"
+
+# TV
+[[rect]]
+id = "rc-tv"
+origin = [5.5, 5.5]
+width = 0.2
+height = 2.5
+color = "#333333"
+
+# Silla
+[[circle]]
+id = "ci-silla"
+center = [10.0, 7.0]
+radius = 0.3
+color = "#66AAFF"
+
+# ── Dormitorio 1 ────────────────────────────────────────────
+
+# Cama doble
+[[rect]]
+id = "rc-cama-d1"
+origin = [1.0, 6.2]
+width = 2.0
+height = 2.5
+color = "#4488FF"
+
+# Mesita de noche 1
+[[rect]]
+id = "rc-mesita1"
+origin = [0.2, 7.5]
+width = 0.6
+height = 0.5
+color = "#66AAFF"
+
+# Mesita de noche 2
+[[rect]]
+id = "rc-mesita2"
+origin = [3.2, 7.5]
+width = 0.6
+height = 0.5
+color = "#66AAFF"
+
+# ── Dormitorio 2 ────────────────────────────────────────────
+
+# Cama individual
+[[rect]]
+id = "rc-cama-d2"
+origin = [7.5, 0.5]
+width = 1.5
+height = 2.0
+color = "#4488FF"
+
+# Escritorio
+[[rect]]
+id = "rc-escritorio"
+origin = [10.0, 0.5]
+width = 1.5
+height = 0.8
+color = "#66AAFF"
+
+# Silla escritorio
+[[circle]]
+id = "ci-silla-esc"
+center = [10.75, 1.8]
+radius = 0.25
+color = "#66AAFF"
+
+# ── Cocina ──────────────────────────────────────────────────
+
+# Cocina (mesada)
+[[rect]]
+id = "rc-mesada"
+origin = [9.0, 4.0]
+width = 2.5
+height = 0.6
+color = "#88CCFF"
+
+# Bacha
+[[circle]]
+id = "ci-bacha"
+center = [10.5, 4.3]
+radius = 0.2
+color = "#4488FF"
+
+# Heladera
+[[rect]]
+id = "rc-heladera"
+origin = [5.5, 4.0]
+width = 0.7
+height = 0.7
+color = "#AADDFF"
+
+# ── Bano ─────────────────────────────────────────────────────
+
+# Inodoro
+[[circle]]
+id = "ci-inodoro"
+center = [1.0, 4.5]
+radius = 0.2
+color = "#4488FF"
+
+# Lavamanos
+[[circle]]
+id = "ci-lavamanos"
+center = [1.0, 3.5]
+radius = 0.2
+color = "#66AAFF"
+
+# Ducha
+[[rect]]
+id = "rc-ducha"
+origin = [0.1, 3.1]
+width = 0.8
+height = 0.8
+color = "#88CCFF"
+
+# ── Etiquetas de ambientes ──────────────────────────────────
+
+[[text]]
+id = "tx-sala"
+position = [7.5, 6.8]
+content = "SALA"
+size = 0.30
+
+[[text]]
+id = "tx-d1"
+position = [1.5, 7.2]
+content = "DORM 1"
+size = 0.25
+
+[[text]]
+id = "tx-d2"
+position = [7.5, 1.5]
+content = "DORM 2"
+size = 0.25
+
+[[text]]
+id = "tx-cocina"
+position = [8.0, 4.6]
+content = "COCINA"
+size = 0.22
+
+[[text]]
+id = "tx-bano"
+position = [0.5, 3.8]
+content = "BANO"
+size = 0.18

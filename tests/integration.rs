@@ -1,6 +1,7 @@
 //! Integration tests — full pipeline from .cf files to DXF output.
 
 use cadforge::compiler::compile_project;
+use cadforge::importer::import_dxf;
 use std::fs;
 use std::path::Path;
 
@@ -193,4 +194,112 @@ color = "#808080"
     writer.save(&path).unwrap();
     let content = fs::read_to_string(&path).unwrap();
     assert!(content.contains("SOLID"));
+}
+
+fn write_constraints_fixture(base: &Path, strict: bool) {
+    fs::create_dir_all(base).unwrap();
+    fs::write(
+        base.join("project.toml"),
+        format!(
+            r#"[project]
+name = "constraints-fixture"
+scale = "1:100"
+units = "m"
+strict = {strict}
+
+[layers]
+parent = {{ file = "parent.cf", locked = false }}
+child = {{ file = "child.cf", locked = false }}
+
+[constraints]
+child.parent = "parent"
+child.belongs_to = "parent"
+"#
+        ),
+    )
+    .unwrap();
+
+    fs::write(
+        base.join("parent.cf"),
+        r#"[layer]
+name = "parent"
+
+[[rect]]
+id = "room-1"
+origin = [0.0, 0.0]
+width = 2.0
+height = 2.0
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        base.join("child.cf"),
+        r#"[layer]
+name = "child"
+
+[[rect]]
+id = "furn-1"
+origin = [3.0, 3.0]
+width = 1.0
+height = 1.0
+belongs_to = "room-1"
+"#,
+    )
+    .unwrap();
+}
+
+#[test]
+fn compile_allows_constraint_warnings_when_not_strict() {
+    let dir = Path::new("/tmp/cadforge_constraints_non_strict");
+    let _ = fs::remove_dir_all(dir);
+    write_constraints_fixture(dir, false);
+
+    let output = dir.join("output.dxf");
+    let _ = fs::remove_file(&output);
+
+    compile_project(dir, None, None).unwrap();
+    assert!(
+        output.exists(),
+        "output.dxf should be created in non-strict mode"
+    );
+
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
+fn compile_fails_on_constraint_violation_when_strict() {
+    let dir = Path::new("/tmp/cadforge_constraints_strict");
+    let _ = fs::remove_dir_all(dir);
+    write_constraints_fixture(dir, true);
+
+    let result = compile_project(dir, None, None);
+    assert!(
+        result.is_err(),
+        "strict mode should fail on constraint violation"
+    );
+
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
+fn import_generated_dxf_creates_cadforge_project() {
+    let source = Path::new("examples/vivienda");
+    let source_output = source.join("output.dxf");
+    let _ = fs::remove_file(&source_output);
+    compile_project(source, None, Some(&source_output)).unwrap();
+
+    let imported = Path::new("/tmp/cadforge_import_test");
+    let _ = fs::remove_dir_all(imported);
+    import_dxf(&source_output, imported, None).unwrap();
+
+    assert!(imported.join("project.toml").exists());
+    let project_toml = fs::read_to_string(imported.join("project.toml")).unwrap();
+    assert!(project_toml.contains("[layers]"));
+    assert!(project_toml.contains("muros"));
+
+    compile_project(imported, None, None).unwrap();
+    assert!(imported.join("output.dxf").exists());
+
+    let _ = fs::remove_dir_all(imported);
 }

@@ -4,8 +4,13 @@
 
 pub mod color;
 pub mod compiler;
+pub mod config;
 pub mod dxf_writer;
+pub mod fmt;
+pub mod importer;
 pub mod model;
 pub mod parser;
 pub mod preview;
 pub mod scaffold;
+pub mod viewer;
+pub mod watch;

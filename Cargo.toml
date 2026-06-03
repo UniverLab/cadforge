@@ -1,8 +1,22 @@
+[workspace]
+members = ["crates/cadforge-cli", "crates/cadforge-view"]
+resolver = "2"
+
 [package]
 name = "cadforge"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 edition = "2021"
-description = ""
-publish = false
+description = "Architecture as Code — deterministic geometry engine for reproducible architectural design"
+license = "MIT"
+publish = true
 
 [dependencies]
+dxf = "0.6.1"
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+toml_edit = "0.22"
+indexmap = { version = "2", features = ["serde"] }
+tiny-skia = "0.11"
+notify = "6.1"

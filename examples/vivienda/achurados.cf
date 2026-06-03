@@ -1,0 +1,70 @@
+[layer]
+name = "achurados"
+color = "#C0C0C0"
+
+# ── Achurado del bano ───────────────────────────────────────
+[[polyline]]
+id = "pl-bano-boundary"
+points = [[0.0, 3.0], [2.0, 3.0], [2.0, 5.0], [0.0, 5.0]]
+closed = true
+style = "dotted"
+
+[[hatch]]
+id = "ht-bano"
+boundary = "pl-bano-boundary"
+pattern = "ansi31"
+scale = 2.0
+angle = 45.0
+
+# ── Relleno solido del closet dormitorio 1 ─────────────────
+[[fill]]
+id = "fl-closet-d1"
+boundary = "rc-closet-d1"
+color = "#E0E0E0"
+
+# ── Achurado de la cocina ───────────────────────────────────
+[[polyline]]
+id = "pl-cocina-boundary"
+points = [[5.0, 3.5], [12.0, 3.5], [12.0, 5.0], [5.0, 5.0]]
+closed = true
+style = "dotted"
+
+[[hatch]]
+id = "ht-cocina"
+boundary = "pl-cocina-boundary"
+pattern = "ansi31"
+scale = 3.0
+angle = 135.0
+
+# ── Ventanales (lineas punteadas en muros) ──────────────────
+[[line]]
+id = "ln-ventana-norte"
+from = [2.0, 9.0]
+to = [4.0, 9.0]
+style = "dashed"
+weight = 0.18
+color = "#00CC44"
+
+[[line]]
+id = "ln-ventana-sur-d2"
+from = [7.0, 0.0]
+to = [10.0, 0.0]
+style = "dashed"
+weight = 0.18
+color = "#00CC44"
+
+[[line]]
+id = "ln-ventana-este"
+from = [12.0, 6.0]
+to = [12.0, 8.0]
+style = "dashed"
+weight = 0.18
+color = "#00CC44"
+
+[[line]]
+id = "ln-ventana-oeste"
+from = [0.0, 3.5]
+to = [0.0, 4.5]
+style = "dashed"
+weight = 0.18
+color = "#00CC44"

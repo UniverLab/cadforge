@@ -3,23 +3,87 @@ name = "muros"
 color = "#FFFFFF"
 line_weight = 0.50
 
-# Perímetro exterior
+# ── Perimetro exterior ──────────────────────────────────────
 [[polyline]]
 id = "pl-perimetro"
-points = [[0.0, 0.0], [8.5, 0.0], [8.5, 6.0], [0.0, 6.0]]
+points = [[0.0, 0.0], [12.0, 0.0], [12.0, 9.0], [0.0, 9.0]]
 closed = true
 weight = 0.50
 
-# Muro divisorio vertical (sala | habitación)
-[[line]]
-id = "ln-div-v"
-from = [4.0, 0.0]
-to = [4.0, 6.0]
+# ── Muro horizontal cocina/sala ────────────────────────────
+[[polyline]]
+id = "pl-muro-h1"
+points = [[5.0, 5.0], [12.0, 5.0]]
 weight = 0.35
 
-# Muro divisorio horizontal (habitación | baño)
+# ── Muro vertical sala/corredor ────────────────────────────
 [[line]]
-id = "ln-div-h"
-from = [4.0, 3.5]
-to = [8.5, 3.5]
+id = "ln-muro-v1"
+from = [5.0, 5.0]
+to = [5.0, 9.0]
 weight = 0.35
+
+# ── Muros dormitorio 1 ─────────────────────────────────────
+[[line]]
+id = "ln-muro-d1-h"
+from = [0.0, 5.0]
+to = [2.0, 5.0]
+weight = 0.35
+
+[[line]]
+id = "ln-muro-d1-h2"
+from = [3.0, 5.0]
+to = [5.0, 5.0]
+weight = 0.35
+
+[[line]]
+id = "ln-muro-d1-v"
+from = [5.0, 5.0]
+to = [5.0, 7.0]
+weight = 0.35
+
+[[line]]
+id = "ln-muro-d1-v2"
+from = [5.0, 8.0]
+to = [5.0, 9.0]
+weight = 0.35
+
+# ── Muros banio ─────────────────────────────────────────────
+[[polyline]]
+id = "pl-bano"
+points = [[0.0, 5.0], [2.0, 5.0], [2.0, 3.0], [0.0, 3.0]]
+closed = true
+weight = 0.25
+
+[[line]]
+id = "ln-muro-bano-h"
+from = [2.0, 3.0]
+to = [2.0, 4.0]
+weight = 0.20
+
+[[line]]
+id = "ln-muro-bano-v1"
+from = [0.0, 4.0]
+to = [0.8, 4.0]
+weight = 0.20
+
+# ── Muro dormitorio 2 (abajo) ──────────────────────────────
+[[polyline]]
+id = "pl-muro-d2"
+points = [[5.0, 0.0], [12.0, 0.0], [12.0, 3.0], [5.0, 3.0]]
+closed = true
+weight = 0.35
+
+[[line]]
+id = "ln-muro-d2-puerta"
+from = [7.0, 3.0]
+to = [7.0, 2.0]
+weight = 0.15
+
+# ── Closet en dormitorio 1 ───────────────────────────────────
+[[rect]]
+id = "rc-closet-d1"
+origin = [0.0, 7.0]
+width = 1.2
+height = 2.0
+weight = 0.15

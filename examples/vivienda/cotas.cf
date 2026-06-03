@@ -1,43 +1,79 @@
 [layer]
 name = "cotas"
-color = "#FF0000"
+color = "#FF4444"
 
-# Cota horizontal del perímetro
+# ── Cotas exteriores ────────────────────────────────────────
+
 [[dim]]
-id = "dm-ancho"
+id = "dm-ancho-total"
 type = "linear"
 from = [0.0, 0.0]
-to = [8.5, 0.0]
-offset = -0.8
+to = [12.0, 0.0]
+offset = -1.2
 
-# Cota vertical del perímetro
 [[dim]]
-id = "dm-alto"
+id = "dm-alto-total"
 type = "linear"
 from = [0.0, 0.0]
-to = [0.0, 6.0]
-offset = -0.8
+to = [0.0, 9.0]
+offset = -1.2
 
-# Cota de la sala (ancho)
+# ── Cotas interiores ───────────────────────────────────────
+
 [[dim]]
-id = "dm-sala"
+id = "dm-sala-ancho"
 type = "linear"
-from = [0.0, 0.0]
-to = [4.0, 0.0]
-offset = -0.5
+from = [5.0, 5.0]
+to = [12.0, 5.0]
+offset = 0.8
 
-# Línea de referencia dashed
-[[line]]
-id = "ln-ref-1"
+[[dim]]
+id = "dm-sala-alto"
+type = "linear"
+from = [5.0, 5.0]
+to = [5.0, 9.0]
+offset = 0.6
+
+[[dim]]
+id = "dm-d1-ancho"
+type = "linear"
+from = [0.0, 5.0]
+to = [5.0, 5.0]
+offset = 0.8
+
+[[dim]]
+id = "dm-d2-ancho"
+type = "linear"
+from = [5.0, 0.0]
+to = [12.0, 0.0]
+offset = -0.6
+
+[[dim]]
+id = "dm-d2-alto"
+type = "linear"
+from = [5.0, 0.0]
+to = [5.0, 3.0]
+offset = 0.6
+
+[[dim]]
+id = "dm-bano-alto"
+type = "linear"
 from = [0.0, 3.0]
-to = [8.5, 3.0]
-style = "dashed"
-color = "#808080"
+to = [0.0, 5.0]
+offset = -0.6
 
-# Línea de eje dashdot
+# ── Ejes de referencia ──────────────────────────────────────
+
 [[line]]
-id = "ln-eje"
-from = [4.25, 0.0]
-to = [4.25, 6.0]
+id = "ln-eje-v"
+from = [6.0, -0.5]
+to = [6.0, 9.5]
 style = "dashdot"
-color = "#00FFFF"
+color = "#00CCCC"
+
+[[line]]
+id = "ln-eje-h"
+from = [-0.5, 5.0]
+to = [12.5, 5.0]
+style = "dashdot"
+color = "#00CCCC"

@@ -8,7 +8,7 @@ version = "0.1.0-beta.1"
 edition = "2021"
 description = "Architecture as Code — deterministic geometry engine for reproducible architectural design"
 license = "MIT"
-publish = false
+publish = true
 
 [dependencies]
 dxf = "0.6.1"

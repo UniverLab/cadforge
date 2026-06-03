@@ -4,7 +4,7 @@ version = "0.1.0-beta.1"
 edition = "2021"
 description = "Vector viewer for cadforge projects"
 license = "MIT"
-publish = false
+publish = true
 
 [[bin]]
 name = "cadforge-view"

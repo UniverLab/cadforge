@@ -323,7 +323,11 @@ fn print_constraint_issues(issues: &[String]) {
 // ── Public API ──────────────────────────────────────────────────────────
 
 /// Compile a full project (project.toml + .cf files) into a single DXF.
-pub fn compile_project(project_dir: &Path, layer_filter: Option<&str>) -> Result<()> {
+pub fn compile_project(
+    project_dir: &Path,
+    layer_filter: Option<&str>,
+    output: Option<&Path>,
+) -> Result<()> {
     let project = parse_project(&project_dir.join("project.toml"))?;
     let mut writer = DxfWriter::new();
 
@@ -358,8 +362,11 @@ pub fn compile_project(project_dir: &Path, layer_filter: Option<&str>) -> Result
         }
     }
 
-    let output_path = project_dir.join("output.dxf");
+    let output_path = output
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| project_dir.join("output.dxf"));
     writer.save(&output_path)?;
+
     println!("✓ DXF generado: {}", output_path.display());
     println!(
         "  {} entidades en {} capas",
@@ -426,17 +433,33 @@ pub fn list_layers(project_dir: &Path) -> Result<()> {
     let project = parse_project(&project_dir.join("project.toml"))?;
 
     println!("Project: {}", project.project.name);
-    println!("Layers:");
+    println!(
+        "Scale: {}  Units: {}",
+        project.project.scale, project.project.units
+    );
+    println!();
+    println!("{:<20} {:<25} {:<10} Color", "Layer", "File", "Entities");
+    println!("{}", "-".repeat(65));
+
     for (name, entry) in &project.layers {
         let cf_path = project_dir.join(&entry.file);
-        let status = if cf_path.exists() {
+        let (status, color) = if cf_path.exists() {
             let cf = parse_cf(&cf_path)?;
-            format!("{} entities", entity_count(&cf))
+            let count = entity_count(&cf);
+            let col = cf
+                .layer_meta
+                .as_ref()
+                .and_then(|m| m.color.as_deref())
+                .unwrap_or("#FFFFFF");
+            (format!("{}", count), col.to_string())
         } else {
-            "⚠ file missing".to_string()
+            ("⚠ missing".to_string(), "-".to_string())
         };
         let lock = if entry.locked { " [locked]" } else { "" };
-        println!("  {} → {} ({}){}", name, entry.file, status, lock);
+        println!(
+            "{:<20} {:<25} {:<10} {}{}",
+            name, entry.file, status, color, lock
+        );
     }
     Ok(())
 }

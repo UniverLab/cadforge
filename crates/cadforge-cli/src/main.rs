@@ -62,7 +62,7 @@ fn main() -> Result<()> {
         Commands::Init => init_project(&PathBuf::from(".")),
         Commands::Build { path, layer } => {
             let dir = resolve_project_dir(path)?;
-            compile_project(&dir, layer.as_deref())
+            compile_project(&dir, layer.as_deref(), None)
         }
         Commands::Check { path } => {
             let dir = resolve_project_dir(path)?;
@@ -75,7 +75,7 @@ fn main() -> Result<()> {
         }
         Commands::Preview { path } => {
             let dir = resolve_project_dir(path)?;
-            generate_preview(&dir)
+            generate_preview(&dir, 2048, 1536, None)
         }
     }
 }

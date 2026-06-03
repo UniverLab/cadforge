@@ -10,8 +10,6 @@ use tiny_skia::{Color, Paint, PathBuilder, Pixmap, Stroke, Transform};
 
 // ── Configuration ───────────────────────────────────────────────────────
 
-const DEFAULT_WIDTH: u32 = 2048;
-const DEFAULT_HEIGHT: u32 = 1536;
 const PADDING: f64 = 0.5; // world units padding around content
 const STROKE_WIDTH: f32 = 1.5;
 const TEXT_MARKER: f64 = 0.05;
@@ -304,13 +302,19 @@ fn color_to_hex(c: Color) -> String {
 // ── Public API ──────────────────────────────────────────────────────────
 
 /// Generate a preview PNG + metadata JSON for the project.
-pub fn generate_preview(project_dir: &Path) -> Result<()> {
+pub fn generate_preview(
+    project_dir: &Path,
+    width: u32,
+    height: u32,
+    layer_filter: Option<&str>,
+) -> Result<()> {
     let project = parse_project(&project_dir.join("project.toml"))?;
 
     // Parse all layer files once
     let layers: Vec<(String, CfFile)> = project
         .layers
         .iter()
+        .filter(|(name, _)| layer_filter.is_none_or(|f| f == *name))
         .map(|(name, entry)| {
             let cf = parse_cf(&project_dir.join(&entry.file))
                 .with_context(|| format!("Failed to parse layer '{}'", name))?;
@@ -319,7 +323,7 @@ pub fn generate_preview(project_dir: &Path) -> Result<()> {
         .collect::<Result<_>>()?;
 
     let bounds = compute_bounds(&layers);
-    let mut renderer = Renderer::new(DEFAULT_WIDTH, DEFAULT_HEIGHT, &bounds)?;
+    let mut renderer = Renderer::new(width, height, &bounds)?;
     let mut entities: Vec<EntityInfo> = Vec::new();
     let mut layer_infos: Vec<LayerInfo> = Vec::new();
 
@@ -339,8 +343,8 @@ pub fn generate_preview(project_dir: &Path) -> Result<()> {
     let meta = PreviewMeta {
         project_name: project.project.name,
         image_file: "preview.png".to_string(),
-        width_px: DEFAULT_WIDTH,
-        height_px: DEFAULT_HEIGHT,
+        width_px: width,
+        height_px: height,
         world_bounds: bounds,
         scale: renderer.scale,
         layers: layer_infos,
@@ -350,7 +354,7 @@ pub fn generate_preview(project_dir: &Path) -> Result<()> {
     let json_path = project_dir.join("preview.meta.json");
     std::fs::write(&json_path, serde_json::to_string_pretty(&meta)?)?;
 
-    println!("✓ Preview: {}", png_path.display());
+    println!("✓ Preview: {} ({}x{})", png_path.display(), width, height);
     println!("✓ Metadata: {}", json_path.display());
     Ok(())
 }

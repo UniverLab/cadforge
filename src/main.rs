@@ -5,8 +5,8 @@ use cadforge::fmt::format_project;
 use cadforge::importer::import_dxf;
 use cadforge::preview::generate_preview;
 use cadforge::scaffold::{create_project, init_project};
+use cadforge::viewer::view_project;
 use cadforge::watch::watch_project;
-use cadforge_view::run_viewer;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -183,7 +183,7 @@ fn main() -> Result<()> {
         }
         Commands::View { path, layer } => {
             let dir = resolve_project_dir(path)?;
-            run_viewer(&dir, layer.as_deref())
+            view_project(&dir, layer.as_deref())
         }
         Commands::Config { command } => match command {
             ConfigCommands::Set { key, value } => config_set(&key, &value),

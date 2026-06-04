@@ -64,7 +64,7 @@ cadforge is an **Architecture as Code** CLI tool and Rust library for declarativ
 | `cadforge watch` | Auto-rebuild on file changes |
 | `cadforge import <file.dxf>` | Import DXF into `.cf` layers + `project.toml` |
 | `cadforge import <file.dxf> --layer <name>` | Import only one DXF layer |
-| `cadforge view` | Open the dedicated `cadforge-view` viewer |
+| `cadforge view` | Open the project in the configured viewer |
 | `cadforge view --layer <name>` | Open only one layer in the viewer |
 | `cadforge config set <key> <value>` | Set global defaults (`author`, `units`) |
 | `cadforge config show` | Show global defaults |

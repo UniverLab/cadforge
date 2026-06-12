@@ -283,6 +283,129 @@ fn compile_fails_on_constraint_violation_when_strict() {
 }
 
 #[test]
+fn render_svg_on_example_project() {
+    let svg = cadforge::svg::render_svg(Path::new("examples/vivienda"), None, 1600).unwrap();
+    assert!(svg.starts_with("<svg"));
+    assert!(svg.ends_with("</svg>"));
+    // Layer groups for every project layer
+    for layer in ["muros", "puertas", "mobiliario", "cotas", "achurados"] {
+        assert!(
+            svg.contains(&format!(r#"data-layer="{}""#, layer)),
+            "missing layer group {}",
+            layer
+        );
+    }
+    // Dimensions are labeled with the measured value in project units
+    assert!(svg.contains(" m</text>"), "dim labels should include units");
+}
+
+#[test]
+fn project_report_is_serializable_and_complete() {
+    let report = cadforge::compiler::project_report(Path::new("examples/vivienda")).unwrap();
+    assert!(report.total_entities > 0);
+    assert_eq!(report.layers.len(), 5);
+    assert!(report.layers.iter().all(|l| !l.missing));
+
+    let json = serde_json::to_string(&report).unwrap();
+    assert!(json.contains("\"total_entities\""));
+    assert!(json.contains("\"issues\""));
+}
+
+#[test]
+fn taller_example_expands_arrays_and_mirrors() {
+    let dir = Path::new("examples/taller");
+
+    // Expanded entity counts: 16 treads + 16 teeth + mirrored geometry
+    let report = cadforge::compiler::project_report(dir).unwrap();
+    assert_eq!(report.total_entities, 49);
+
+    let svg = cadforge::svg::render_svg(dir, None, 1200).unwrap();
+    // 15 generated tread copies with derived ids
+    let tread_copies = svg.matches(r#"data-id="pl-huella@"#).count();
+    assert_eq!(tread_copies, 15);
+    // Mirrored door arc exists
+    assert!(svg.contains(r#"data-id="ar-puerta@m""#));
+    // Styled dims: 1 decimal with units, 3 decimals without units
+    assert!(svg.contains("3.2 m"));
+    assert!(svg.contains(">2.900<"));
+
+    // The DXF compiles with the expanded geometry
+    let out = Path::new("/tmp/cadforge_taller.dxf");
+    let _ = fs::remove_file(out);
+    compile_project(dir, None, Some(out)).unwrap();
+    assert!(out.exists());
+    let _ = fs::remove_file(out);
+}
+
+#[test]
+fn preview_renders_faithful_png_with_metadata_and_highlights() {
+    let dir = Path::new("/tmp/cadforge_preview_test");
+    let _ = fs::remove_dir_all(dir);
+    fs::create_dir_all(dir).unwrap();
+    fs::write(
+        dir.join("project.toml"),
+        r#"[project]
+name = "preview-fixture"
+units = "m"
+
+[layers]
+plano = { file = "plano.cf", locked = false }
+"#,
+    )
+    .unwrap();
+    fs::write(
+        dir.join("plano.cf"),
+        r##"[[rect]]
+id = "rc-room"
+origin = [0.0, 0.0]
+width = 6.0
+height = 4.0
+
+[[text]]
+id = "tx-label"
+position = [3.0, 2.0]
+content = "SALA"
+size = 0.4
+align = "center"
+
+[[dim]]
+id = "dm-width"
+from = [0.0, 0.0]
+to = [6.0, 0.0]
+offset = -0.6
+"##,
+    )
+    .unwrap();
+
+    cadforge::preview::generate_preview(
+        dir,
+        800,
+        800,
+        None,
+        &["rc-room".to_string()],
+        cadforge::preview::PreviewOutputs {
+            png: true,
+            svg: true,
+        },
+    )
+    .unwrap();
+
+    assert!(dir.join("preview.png").exists());
+    assert!(dir.join("preview.svg").exists());
+    let meta = fs::read_to_string(dir.join("preview.meta.json")).unwrap();
+    assert!(meta.contains(r#""content": "SALA""#));
+    assert!(meta.contains(r#""entity_type": "dim""#));
+    assert!(meta.contains(r#""highlighted""#));
+    assert!(meta.contains("rc-room"));
+
+    // The PNG must fit within the requested box and be non-trivial
+    let png = fs::read(dir.join("preview.png")).unwrap();
+    assert!(png.len() > 1000, "PNG should contain rendered content");
+
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
 fn import_generated_dxf_creates_cadforge_project() {
     let source = Path::new("examples/vivienda");
     let source_output = source.join("output.dxf");

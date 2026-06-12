@@ -180,6 +180,7 @@ impl DxfWriter {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     pub fn dim_linear(
         &mut self,
         x1: f64,
@@ -187,6 +188,8 @@ impl DxfWriter {
         x2: f64,
         y2: f64,
         offset: f64,
+        label: &str,
+        text_height: f64,
         layer: &str,
         style: &EntityStyle,
     ) {
@@ -199,8 +202,6 @@ impl DxfWriter {
         self.add_entity(EntityType::RotatedDimension(dim), layer, style);
 
         // Also emit dimension lines and text as explicit entities for compatibility
-        let dist = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt();
-        let text_val = format!("{:.2}", dist);
         let mid_x = (x1 + x2) / 2.0;
         let mid_y = (y1 + y2) / 2.0 + offset;
 
@@ -211,7 +212,14 @@ impl DxfWriter {
         self.line(x1, y1 + offset, x2, y2 + offset, layer, style);
         // Dimension text
         let text_style = EntityStyle::default();
-        self.text(mid_x, mid_y + 0.05, 0.1, &text_val, layer, &text_style);
+        self.text(
+            mid_x,
+            mid_y + text_height * 0.5,
+            text_height,
+            label,
+            layer,
+            &text_style,
+        );
     }
 
     /// Save the drawing to a DXF file.

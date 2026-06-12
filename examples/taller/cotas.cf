@@ -1,0 +1,30 @@
+[layer]
+name = "cotas"
+color = "#FF5050"
+
+# Diámetro exterior de la escalera — etiqueta grande, 1 decimal
+[[dim]]
+id = "dm-escalera"
+from = [-1.6, 0.0]
+to = [1.6, 0.0]
+offset = -2.2
+text_size = 0.28
+precision = 1
+
+# Ancho del engranaje — sin unidades, 3 decimales, letra pequeña
+[[dim]]
+id = "dm-engranaje"
+from = [3.55, 0.0]
+to = [6.45, 0.0]
+offset = -2.2
+text_size = 0.16
+precision = 3
+show_units = false
+
+# Ancho total de la nave (geometría espejada: 0 → 5)
+[[dim]]
+id = "dm-nave"
+from = [0.0, -4.6]
+to = [5.0, -4.6]
+offset = -0.6
+text_size = 0.22

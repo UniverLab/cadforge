@@ -3,7 +3,6 @@ name = "mobiliario"
 color = "#4488FF"
 
 # ── Sala ─────────────────────────────────────────────────────
-
 # Sofa
 [[rect]]
 id = "rc-sofa"
@@ -36,7 +35,6 @@ radius = 0.3
 color = "#66AAFF"
 
 # ── Dormitorio 1 ────────────────────────────────────────────
-
 # Cama doble
 [[rect]]
 id = "rc-cama-d1"
@@ -62,7 +60,6 @@ height = 0.5
 color = "#66AAFF"
 
 # ── Dormitorio 2 ────────────────────────────────────────────
-
 # Cama individual
 [[rect]]
 id = "rc-cama-d2"
@@ -87,7 +84,6 @@ radius = 0.25
 color = "#66AAFF"
 
 # ── Cocina ──────────────────────────────────────────────────
-
 # Cocina (mesada)
 [[rect]]
 id = "rc-mesada"
@@ -112,7 +108,6 @@ height = 0.7
 color = "#AADDFF"
 
 # ── Bano ─────────────────────────────────────────────────────
-
 # Inodoro
 [[circle]]
 id = "ci-inodoro"
@@ -136,7 +131,6 @@ height = 0.8
 color = "#88CCFF"
 
 # ── Etiquetas de ambientes ──────────────────────────────────
-
 [[text]]
 id = "tx-sala"
 position = [7.5, 6.8]

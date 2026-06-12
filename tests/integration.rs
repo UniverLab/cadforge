@@ -426,3 +426,91 @@ fn import_generated_dxf_creates_cadforge_project() {
 
     let _ = fs::remove_dir_all(imported);
 }
+
+#[test]
+fn import_roundtrip_recovers_dims_styles_and_colors() {
+    let dir = Path::new("/tmp/cadforge_roundtrip_fidelity");
+    let _ = fs::remove_dir_all(dir);
+    fs::create_dir_all(dir).unwrap();
+    fs::write(
+        dir.join("project.toml"),
+        "[project]\nname = \"rt\"\nunits = \"m\"\n\n[layers]\nplano = { file = \"plano.cf\", locked = false }\n",
+    )
+    .unwrap();
+    fs::write(
+        dir.join("plano.cf"),
+        r##"[layer]
+name = "plano"
+color = "#FF0000"
+
+[[line]]
+id = "ln-base"
+from = [0.0, 0.0]
+to = [8.0, 0.0]
+color = "#FF5050"
+weight = 0.5
+style = "dashed"
+
+[[text]]
+id = "tx-sala"
+position = [4.0, 3.0]
+content = "SALA"
+size = 0.25
+
+[[dim]]
+id = "dm-h"
+from = [0.0, 0.0]
+to = [8.0, 0.0]
+offset = -0.8
+
+[[dim]]
+id = "dm-v"
+from = [0.0, 0.0]
+to = [0.0, 6.0]
+offset = -1.2
+"##,
+    )
+    .unwrap();
+
+    let dxf_path = dir.join("output.dxf");
+    compile_project(dir, None, Some(&dxf_path)).unwrap();
+
+    let imported = Path::new("/tmp/cadforge_roundtrip_fidelity_out");
+    let _ = fs::remove_dir_all(imported);
+    import_dxf(&dxf_path, imported, None).unwrap();
+    let cf = fs::read_to_string(imported.join("plano.cf")).unwrap();
+
+    // Layer color survives via the DXF layer table (ACI)
+    assert!(
+        cf.contains("color = \"#FF0000\""),
+        "layer color lost:\n{cf}"
+    );
+    // Entity style survives via true color, lineweight and line type
+    assert!(
+        cf.contains("color = \"#FF5050\""),
+        "entity color lost:\n{cf}"
+    );
+    assert!(cf.contains("weight = 0.5"), "entity weight lost:\n{cf}");
+    assert!(cf.contains("style = \"dashed\""), "line style lost:\n{cf}");
+    // Both dims come back as dims with their perpendicular offsets intact
+    assert_eq!(cf.matches("[[dim]]").count(), 2, "dims lost:\n{cf}");
+    assert!(cf.contains("offset = -0.8000"), "horizontal offset:\n{cf}");
+    assert!(cf.contains("offset = -1.2000"), "vertical offset:\n{cf}");
+    // Companion graphics (3 lines + 1 label per dim) are deduplicated
+    assert_eq!(
+        cf.matches("[[line]]").count(),
+        1,
+        "dim companion lines not deduped:\n{cf}"
+    );
+    assert_eq!(
+        cf.matches("[[text]]").count(),
+        1,
+        "dim label texts not deduped:\n{cf}"
+    );
+
+    // The reimported project must still compile
+    compile_project(imported, None, None).unwrap();
+
+    let _ = fs::remove_dir_all(dir);
+    let _ = fs::remove_dir_all(imported);
+}

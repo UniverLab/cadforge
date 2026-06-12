@@ -21,7 +21,12 @@ pub fn create_project(name: &str, parent: &Path) -> Result<()> {
     println!("  → mobiliario.cf");
     println!("  → cotas.cf");
     println!("  → .gitignore");
-    println!("\n  Run `cadforge build --path {}` to compile.", name);
+    println!(
+        "\n  Run `cadforge serve --path {}` for a live preview,",
+        name
+    );
+    println!("  or `cadforge build --path {}` to compile to DXF.", name);
+    println!("  `cadforge schema` prints the .cf language reference.");
     Ok(())
 }
 
@@ -44,6 +49,8 @@ pub fn init_project(dir: &Path) -> Result<()> {
     println!("  → mobiliario.cf");
     println!("  → cotas.cf");
     println!("  → .gitignore");
+    println!("\n  Run `cadforge serve` for a live preview.");
+    println!("  `cadforge schema` prints the .cf language reference.");
     Ok(())
 }
 
@@ -63,7 +70,7 @@ cotas = {{ file = "cotas.cf", locked = false }}
     );
     fs::write(project_dir.join("project.toml"), project_toml)?;
 
-    let gitignore = "# CADforge output\noutput.dxf\npreview.png\npreview.meta.json\n\n# Rust build artifacts\ntarget/\n";
+    let gitignore = "# CADforge output\noutput.dxf\npreview.png\npreview.svg\npreview.meta.json\n\n# Rust build artifacts\ntarget/\n";
     fs::write(project_dir.join(".gitignore"), gitignore)?;
 
     let muros_cf = r##"[layer]
@@ -199,6 +206,7 @@ mod tests {
         assert!(project_dir.join("puertas.cf").exists());
         assert!(project_dir.join("mobiliario.cf").exists());
         assert!(project_dir.join("cotas.cf").exists());
+        assert!(!project_dir.join("AGENTS.md").exists());
         assert!(project_dir.join(".gitignore").exists());
 
         let content = fs::read_to_string(project_dir.join("project.toml")).unwrap();
@@ -207,6 +215,7 @@ mod tests {
 
         let gitignore = fs::read_to_string(project_dir.join(".gitignore")).unwrap();
         assert!(gitignore.contains("output.dxf"));
+        assert!(gitignore.contains("preview.svg"));
         assert!(gitignore.contains("target/"));
 
         let _ = fs::remove_dir_all(&tmp);

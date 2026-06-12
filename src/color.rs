@@ -16,6 +16,22 @@ pub fn hex_to_aci(hex: &str) -> u8 {
     }
 }
 
+/// Hex color from an ACI color index (inverse of `hex_to_aci`).
+pub fn aci_to_hex(index: u8) -> &'static str {
+    match index {
+        1 => "#FF0000", // red
+        2 => "#FFFF00", // yellow
+        3 => "#00FF00", // green
+        4 => "#00FFFF", // cyan
+        5 => "#0000FF", // blue
+        6 => "#FF00FF", // magenta
+        7 => "#FFFFFF", // white
+        8 => "#808080", // dark grey
+        9 => "#C0C0C0", // light grey
+        _ => "#FFFFFF", // default white
+    }
+}
+
 /// Convert hex color string to 24-bit integer for DXF true color.
 pub fn hex_to_24bit(hex: &str) -> i32 {
     let hex = hex.trim_start_matches('#');
@@ -37,6 +53,14 @@ mod tests {
         assert_eq!(hex_to_aci("#00FF00"), 3);
         assert_eq!(hex_to_aci("#FFFFFF"), 7);
         assert_eq!(hex_to_aci("#123456"), 7); // unknown → white
+    }
+
+    #[test]
+    fn aci_roundtrips_standard_palette() {
+        for index in 1..=9u8 {
+            assert_eq!(hex_to_aci(aci_to_hex(index)), index);
+        }
+        assert_eq!(aci_to_hex(42), "#FFFFFF"); // unknown → white
     }
 
     #[test]

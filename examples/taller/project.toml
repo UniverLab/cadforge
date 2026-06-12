@@ -1,0 +1,10 @@
+[project]
+name = "Taller — arrays, espejo y cotas"
+scale = "1:50"
+units = "m"
+
+[layers]
+escalera = { file = "escalera.cf", locked = false }
+engranaje = { file = "engranaje.cf", locked = false }
+planta = { file = "planta.cf", locked = false }
+cotas = { file = "cotas.cf", locked = false }

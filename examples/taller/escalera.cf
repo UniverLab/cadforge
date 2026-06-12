@@ -1,0 +1,37 @@
+[layer]
+name = "escalera"
+color = "#FFFFFF"
+line_weight = 0.35
+
+# Columna central
+[[circle]]
+id = "ci-columna"
+center = [0.0, 0.0]
+radius = 0.25
+
+# Perímetro exterior de la escalera
+[[circle]]
+id = "ci-borde"
+center = [0.0, 0.0]
+radius = 1.6
+weight = 0.50
+
+# Huella base (un escalón); el array polar genera la helicoidal completa
+[[polyline]]
+id = "pl-huella"
+points = [
+    [0.30, 0.0],
+    [1.55, 0.0],
+    [1.456, 0.530],
+    [0.282, 0.103],
+]
+closed = true
+weight = 0.25
+
+[[array]]
+id = "ar-helicoidal"
+target = "pl-huella"
+mode = "polar"
+count = 16
+center = [0.0, 0.0]
+step_angle = 22.5

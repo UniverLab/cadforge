@@ -4,8 +4,10 @@ use crate::color::{hex_to_24bit, hex_to_aci, weight_to_dxf};
 use crate::dxf_writer::{DxfWriter, EntityStyle};
 use crate::model::{CfFile, CommonAttrs, LineStyle};
 use crate::parser::{parse_cf, parse_project, LayerEntry, ProjectFile};
+use crate::transform::expand_cf;
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
+use serde::Serialize;
 use std::collections::HashSet;
 use std::path::Path;
 
@@ -81,7 +83,7 @@ fn load_layers(
     for (name, entry) in layers {
         let cf_path = project_dir.join(&entry.file);
         let cf = parse_cf(&cf_path).with_context(|| format!("Failed to parse layer '{}'", name))?;
-        loaded.insert(name.clone(), cf);
+        loaded.insert(name.clone(), expand_cf(&cf));
     }
     Ok(loaded)
 }
@@ -444,7 +446,7 @@ pub fn list_layers(project_dir: &Path) -> Result<()> {
     for (name, entry) in &project.layers {
         let cf_path = project_dir.join(&entry.file);
         let (status, color) = if cf_path.exists() {
-            let cf = parse_cf(&cf_path)?;
+            let cf = expand_cf(&parse_cf(&cf_path)?);
             let count = entity_count(&cf);
             let col = cf
                 .layer_meta
@@ -462,6 +464,77 @@ pub fn list_layers(project_dir: &Path) -> Result<()> {
         );
     }
     Ok(())
+}
+
+// ── Machine-readable report (for AI agents / tooling) ──────────────────
+
+#[derive(Serialize)]
+pub struct LayerReport {
+    pub name: String,
+    pub file: String,
+    pub entities: Option<usize>,
+    pub color: Option<String>,
+    pub locked: bool,
+    pub missing: bool,
+}
+
+#[derive(Serialize)]
+pub struct ProjectReport {
+    pub name: String,
+    pub scale: String,
+    pub units: String,
+    pub strict: bool,
+    pub total_entities: usize,
+    pub layers: Vec<LayerReport>,
+    pub issues: Vec<String>,
+}
+
+/// Build a structured validation report of the project (used by `--json` flags).
+pub fn project_report(project_dir: &Path) -> Result<ProjectReport> {
+    let project = parse_project(&project_dir.join("project.toml"))?;
+    let mut loaded: IndexMap<String, CfFile> = IndexMap::new();
+    let mut layers = Vec::with_capacity(project.layers.len());
+    let mut total = 0usize;
+
+    for (name, entry) in &project.layers {
+        let cf_path = project_dir.join(&entry.file);
+        if cf_path.exists() {
+            let cf = expand_cf(
+                &parse_cf(&cf_path).with_context(|| format!("Failed to parse layer '{}'", name))?,
+            );
+            let count = entity_count(&cf);
+            total += count;
+            layers.push(LayerReport {
+                name: name.clone(),
+                file: entry.file.clone(),
+                entities: Some(count),
+                color: cf.layer_meta.as_ref().and_then(|m| m.color.clone()),
+                locked: entry.locked,
+                missing: false,
+            });
+            loaded.insert(name.clone(), cf);
+        } else {
+            layers.push(LayerReport {
+                name: name.clone(),
+                file: entry.file.clone(),
+                entities: None,
+                color: None,
+                locked: entry.locked,
+                missing: true,
+            });
+        }
+    }
+
+    let issues = validate_constraints(&project, &loaded);
+    Ok(ProjectReport {
+        name: project.project.name.clone(),
+        scale: project.project.scale.clone(),
+        units: project.project.units.clone(),
+        strict: is_strict(&project),
+        total_entities: total,
+        layers,
+        issues,
+    })
 }
 
 // ── Internal ────────────────────────────────────────────────────────────
@@ -576,12 +649,19 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
 
     for e in &cf.dims {
         let style = resolve_style(&e.common);
+        let dist = ((e.to[0] - e.from[0]).powi(2) + (e.to[1] - e.from[1]).powi(2)).sqrt();
+        let label =
+            crate::svg::format_dim_label(dist, e.precision.unwrap_or(2) as usize, e.show_units, "")
+                .trim_end()
+                .to_string();
         writer.dim_linear(
             e.from[0],
             e.from[1],
             e.to[0],
             e.to[1],
             e.offset,
+            &label,
+            e.text_size.unwrap_or(0.25),
             resolve_layer(&e.common, default_layer),
             &style,
         );

@@ -180,6 +180,7 @@ impl DxfWriter {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     pub fn dim_linear(
         &mut self,
         x1: f64,
@@ -187,31 +188,47 @@ impl DxfWriter {
         x2: f64,
         y2: f64,
         offset: f64,
+        label: &str,
+        text_height: f64,
         layer: &str,
         style: &EntityStyle,
     ) {
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        let len = (dx * dx + dy * dy).sqrt();
+        if len < 1e-9 {
+            return;
+        }
+        // Offset along the normal, matching the preview renderer
+        let (nx, ny) = (-dy / len, dx / len);
+        let (ax, ay) = (x1 + nx * offset, y1 + ny * offset);
+        let (bx, by) = (x2 + nx * offset, y2 + ny * offset);
+
         let dim = dxf::entities::RotatedDimension {
             definition_point_2: Point::new(x1, y1, 0.0),
             definition_point_3: Point::new(x2, y2, 0.0),
-            insertion_point: Point::new((x1 + x2) / 2.0, y1 + offset, 0.0),
+            insertion_point: Point::new((ax + bx) / 2.0, (ay + by) / 2.0, 0.0),
+            rotation_angle: dy.atan2(dx).to_degrees(),
             ..Default::default()
         };
         self.add_entity(EntityType::RotatedDimension(dim), layer, style);
 
         // Also emit dimension lines and text as explicit entities for compatibility
-        let dist = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt();
-        let text_val = format!("{:.2}", dist);
-        let mid_x = (x1 + x2) / 2.0;
-        let mid_y = (y1 + y2) / 2.0 + offset;
-
         // Extension lines
-        self.line(x1, y1, x1, y1 + offset, layer, style);
-        self.line(x2, y2, x2, y2 + offset, layer, style);
+        self.line(x1, y1, ax, ay, layer, style);
+        self.line(x2, y2, bx, by, layer, style);
         // Dimension line
-        self.line(x1, y1 + offset, x2, y2 + offset, layer, style);
-        // Dimension text
+        self.line(ax, ay, bx, by, layer, style);
+        // Dimension text, raised half its height off the dimension line
         let text_style = EntityStyle::default();
-        self.text(mid_x, mid_y + 0.05, 0.1, &text_val, layer, &text_style);
+        self.text(
+            (ax + bx) / 2.0 + nx * text_height * 0.5,
+            (ay + by) / 2.0 + ny * text_height * 0.5,
+            text_height,
+            label,
+            layer,
+            &text_style,
+        );
     }
 
     /// Save the drawing to a DXF file.

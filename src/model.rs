@@ -114,6 +114,12 @@ pub struct CfDim {
     pub to: [f64; 2],
     #[serde(default = "default_offset")]
     pub offset: f64,
+    /// Label height in world units (default 0.25).
+    pub text_size: Option<f64>,
+    /// Decimal places for the measured value (default 2).
+    pub precision: Option<u32>,
+    /// Append the project units to the label (default true).
+    pub show_units: Option<bool>,
     #[serde(flatten)]
     pub common: CommonAttrs,
 }
@@ -156,6 +162,50 @@ fn default_angle() -> f64 {
 #[derive(Debug, Clone, Deserialize)]
 pub struct CfGroup {
     pub members: Vec<String>,
+    #[serde(flatten)]
+    pub common: CommonAttrs,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ArrayMode {
+    Linear,
+    Polar,
+}
+
+/// Repeats target primitives: linear (offset per copy) or polar (rotation
+/// around a center — spiral stairs, gear teeth, radial columns).
+#[derive(Debug, Clone, Deserialize)]
+pub struct CfArray {
+    /// Single target id (alternative to `targets`).
+    pub target: Option<String>,
+    /// Multiple target ids.
+    pub targets: Option<Vec<String>>,
+    pub mode: ArrayMode,
+    /// Total number of instances, including the original.
+    pub count: usize,
+    /// Linear: displacement per copy.
+    pub offset: Option<[f64; 2]>,
+    /// Polar: rotation center.
+    pub center: Option<[f64; 2]>,
+    /// Polar: degrees per copy (counterclockwise).
+    pub step_angle: Option<f64>,
+    /// Polar: rotate each copy's geometry (true) or only orbit it (false).
+    #[serde(default = "default_true")]
+    pub rotate_items: bool,
+    #[serde(flatten)]
+    pub common: CommonAttrs,
+}
+
+/// Mirrors target primitives across an axis defined by two points.
+#[derive(Debug, Clone, Deserialize)]
+pub struct CfMirror {
+    /// Single target id (alternative to `targets`).
+    pub target: Option<String>,
+    /// Multiple target ids.
+    pub targets: Option<Vec<String>>,
+    /// Mirror axis: two points [[x1, y1], [x2, y2]].
+    pub axis: [[f64; 2]; 2],
     #[serde(flatten)]
     pub common: CommonAttrs,
 }
@@ -211,4 +261,8 @@ pub struct CfFile {
     pub fills: Vec<CfFill>,
     #[serde(default, rename = "group")]
     pub groups: Vec<CfGroup>,
+    #[serde(default, rename = "array")]
+    pub arrays: Vec<CfArray>,
+    #[serde(default, rename = "mirror")]
+    pub mirrors: Vec<CfMirror>,
 }

@@ -54,6 +54,31 @@ Agents get first-class support:
 
 ---
 
+## Installation
+
+**Linux / macOS:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/UniverLab/cadforge/main/scripts/install.sh | sh
+```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/UniverLab/cadforge/main/scripts/install.ps1 | iex
+```
+
+Or via cargo: `cargo install cadforge` — see [`docs/installation.md`](docs/installation.md) for all methods.
+
+## Documentation
+
+Full documentation lives in [`docs/`](docs/): installation, quick start, the
+`.cf` format, live preview, building & export, working with agents, and the
+complete CLI reference.
+
+---
+
+
 ## Features
 
 ### 🎯 Core Platform
@@ -294,4 +319,5 @@ MIT — see [LICENSE](LICENSE) for details.
 
 ---
 
-Made with ❤️ by [JheisonMB](https://github.com/JheisonMB) and [UniverLab](https://github.com/UniverLab)
+An experiment of [UniverLab](https://github.com/UniverLab) — an open computational laboratory.
+Made with ❤️ by [JheisonMB](https://github.com/JheisonMB)

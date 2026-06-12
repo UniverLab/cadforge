@@ -54,3 +54,7 @@ output.dxf
 preview.png
 preview.svg
 preview.meta.json
+
+# AI agent instruction files — not part of this repo
+CLAUDE.md
+AGENTS.md

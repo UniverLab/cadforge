@@ -52,4 +52,5 @@ Cargo.lock
 # End of https://www.toptal.com/developers/gitignore/api/rust
 output.dxf
 preview.png
+preview.svg
 preview.meta.json

@@ -1,5 +1,6 @@
 //! Scaffold — generates a new CADforge project structure.
 
+use crate::schema::CF_REFERENCE;
 use anyhow::{bail, Result};
 use std::fs;
 use std::path::Path;
@@ -20,8 +21,13 @@ pub fn create_project(name: &str, parent: &Path) -> Result<()> {
     println!("  → puertas.cf");
     println!("  → mobiliario.cf");
     println!("  → cotas.cf");
+    println!("  → AGENTS.md");
     println!("  → .gitignore");
-    println!("\n  Run `cadforge build --path {}` to compile.", name);
+    println!(
+        "\n  Run `cadforge serve --path {}` for a live preview,",
+        name
+    );
+    println!("  or `cadforge build --path {}` to compile to DXF.", name);
     Ok(())
 }
 
@@ -43,7 +49,9 @@ pub fn init_project(dir: &Path) -> Result<()> {
     println!("  → puertas.cf");
     println!("  → mobiliario.cf");
     println!("  → cotas.cf");
+    println!("  → AGENTS.md");
     println!("  → .gitignore");
+    println!("\n  Run `cadforge serve` for a live preview.");
     Ok(())
 }
 
@@ -63,8 +71,34 @@ cotas = {{ file = "cotas.cf", locked = false }}
     );
     fs::write(project_dir.join("project.toml"), project_toml)?;
 
-    let gitignore = "# CADforge output\noutput.dxf\npreview.png\npreview.meta.json\n\n# Rust build artifacts\ntarget/\n";
+    let gitignore = "# CADforge output\noutput.dxf\npreview.png\npreview.svg\npreview.meta.json\n\n# Rust build artifacts\ntarget/\n";
     fs::write(project_dir.join(".gitignore"), gitignore)?;
+
+    let agents_md = format!(
+        r#"# {name} — Agent Guide
+
+This is a CADforge project: geometry declared as TOML, compiled to DXF.
+Edit the `.cf` layer files listed in `project.toml`; never edit `output.dxf`
+or `preview.*` (generated).
+
+Feedback loop:
+
+1. Edit `.cf` files (format reference below).
+2. `cadforge check --json` — validate and read constraint issues.
+3. `cadforge preview` — render `preview.png` (faithful: real text, measured
+   dimensions, hatches) + `preview.meta.json` (entity bounding boxes in world
+   and pixel coordinates). Look at the image to verify your work.
+4. `cadforge preview --highlight <id1,id2>` — re-render with labeled amber
+   markers around the entities you just touched, to confirm the change landed
+   where intended.
+5. If a human is watching, `cadforge serve` gives them a live browser preview
+   that refreshes automatically on every save.
+
+{reference}"#,
+        name = name,
+        reference = CF_REFERENCE
+    );
+    fs::write(project_dir.join("AGENTS.md"), agents_md)?;
 
     let muros_cf = r##"[layer]
 name = "muros"
@@ -199,6 +233,7 @@ mod tests {
         assert!(project_dir.join("puertas.cf").exists());
         assert!(project_dir.join("mobiliario.cf").exists());
         assert!(project_dir.join("cotas.cf").exists());
+        assert!(project_dir.join("AGENTS.md").exists());
         assert!(project_dir.join(".gitignore").exists());
 
         let content = fs::read_to_string(project_dir.join("project.toml")).unwrap();
@@ -207,7 +242,12 @@ mod tests {
 
         let gitignore = fs::read_to_string(project_dir.join(".gitignore")).unwrap();
         assert!(gitignore.contains("output.dxf"));
+        assert!(gitignore.contains("preview.svg"));
         assert!(gitignore.contains("target/"));
+
+        let agents = fs::read_to_string(project_dir.join("AGENTS.md")).unwrap();
+        assert!(agents.contains("mi-proyecto"));
+        assert!(agents.contains("[[line]]"));
 
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -237,6 +277,7 @@ mod tests {
         assert!(tmp.join("puertas.cf").exists());
         assert!(tmp.join("mobiliario.cf").exists());
         assert!(tmp.join("cotas.cf").exists());
+        assert!(tmp.join("AGENTS.md").exists());
         assert!(tmp.join(".gitignore").exists());
 
         let _ = fs::remove_dir_all(&tmp);

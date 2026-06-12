@@ -32,8 +32,8 @@ a deterministic, AutoCAD-compatible DXF.
 
 Agents get first-class support:
 
-- `cadforge schema` — full `.cf` language reference in one command (also written
-  to every new project as `AGENTS.md`).
+- `cadforge schema` — full `.cf` language reference in one command; agents
+  self-discover the format without prior training.
 - `cadforge check --json` / `cadforge layers --json` — machine-readable
   validation reports.
 - `cadforge preview` — a faithful PNG render (real text, measured dimension
@@ -62,7 +62,7 @@ Agents get first-class support:
 
 ### 🏗️ Project Management
 
-- **Project Scaffolding** — `cadforge new` creates a complete multi-layer project (muros, puertas, mobiliario, cotas) plus an `AGENTS.md` that teaches any AI agent the format.
+- **Project Scaffolding** — `cadforge new` creates a complete multi-layer project (muros, puertas, mobiliario, cotas) with meaningful architectural examples.
 - **Multi-Layer Compilation** — Compile all layers or target specific layers with `--layer`. Custom output path with `--output`.
 - **Auto-Rebuild** — `cadforge watch` monitors `.cf` and `.toml` files and auto-rebuilds DXF on changes with 300ms debounce.
 - **Code Formatting** — `cadforge fmt` normalizes `.cf` files. `--check` mode for CI validation.
@@ -213,7 +213,7 @@ Run `cadforge schema` for the complete reference with all attributes.
 - `schema/` — Embedded `.cf` language reference for humans and agents
 - `parser/` — TOML parsing, primitive extraction, array-of-tables handling
 - `model/` — Data structures: Layer, Primitive, Project
-- `scaffold/` — Multi-layer project creation with architectural examples + AGENTS.md
+- `scaffold/` — Multi-layer project creation with architectural examples
 - `fmt/` — .cf file formatting and normalization
 - `watch/` — File system watcher with auto-rebuild and debounce
 - `importer/` — DXF → `.cf` migration
@@ -229,7 +229,7 @@ Run `cadforge schema` for the complete reference with all attributes.
 | Build output | `./output.dxf` | DXF |
 | Preview output | `./preview.png`, `./preview.svg` | PNG / SVG |
 | Preview metadata | `./preview.meta.json` | JSON |
-| Agent guide | `./AGENTS.md` | Markdown |
+| Language reference | `cadforge schema` (stdout) | Markdown |
 
 ---
 

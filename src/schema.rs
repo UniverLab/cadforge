@@ -1,8 +1,8 @@
 //! Schema — the `.cf` language reference, printable via `cadforge schema`.
 //!
-//! This is the self-discovery entry point for AI agents: one command dumps the
-//! complete format so any agent can generate valid `.cf` files without prior
-//! training. The same text is embedded into AGENTS.md by `cadforge new`.
+//! This is the self-discovery entry point for AI agents and humans alike: one
+//! command dumps the complete format so any agent can generate valid `.cf`
+//! files without prior training.
 
 /// Complete `.cf` + `project.toml` reference in markdown.
 pub const CF_REFERENCE: &str = r##"# CADforge `.cf` Language Reference

@@ -1,13 +1,13 @@
 ---
 title: Cadforge
-description: Architecture as Code — declarative 2D CAD in TOML, live browser preview, deterministic DXF output.
+description: CAD as code — declarative CAD in TOML, live browser preview, deterministic DXF output.
 order: 1
 ---
 
 # Cadforge
 
-Cadforge is an **Architecture as Code** CLI tool and Rust library for
-declarative 2D CAD modeling. Write geometry as code in `.cf` TOML files,
+Cadforge is a **CAD as code** CLI tool and Rust library for
+declarative CAD modeling. Write geometry as code in `.cf` TOML files,
 watch it live in the browser, and compile to AutoCAD-compatible DXF —
 built for humans and AI agents working together.
 

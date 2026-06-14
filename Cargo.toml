@@ -2,7 +2,7 @@
 name = "cadforge"
 version = "0.1.0-beta.2"
 edition = "2021"
-description = "Architecture as Code — deterministic geometry engine for reproducible architectural design"
+description = "CAD as code — deterministic geometry engine for reproducible CAD drawings"
 license = "MIT"
 homepage = "https://github.com/UniverLab/cadforge"
 repository = "https://github.com/UniverLab/cadforge"

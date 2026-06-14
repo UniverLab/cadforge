@@ -19,7 +19,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-2E8B57?style=for-the-badge" alt="License"/></a>
 </p>
 
-cadforge is an **Architecture as Code** CLI tool and Rust library for declarative 2D CAD modeling. Write geometry as code in `.cf` TOML format, watch it live in the browser, and compile to DXF — built for humans and AI agents working together.
+cadforge is a **CAD as code** CLI tool and Rust library for declarative CAD modeling. Write geometry as code in `.cf` TOML format, watch it live in the browser, and compile to DXF — built for humans and AI agents working together.
 
 ---
 

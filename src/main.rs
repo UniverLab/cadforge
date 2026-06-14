@@ -16,7 +16,7 @@ use std::path::PathBuf;
 #[command(
     name = "cadforge",
     version,
-    about = "Architecture as Code — declarative geometry → DXF"
+    about = "CAD as code — declarative geometry → DXF"
 )]
 struct Cli {
     #[command(subcommand)]

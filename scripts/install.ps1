@@ -76,6 +76,29 @@ if ($userPath -notlike "*$InstallDir*") {
 # --- cleanup ---
 Remove-Item $Tmp -Recurse -Force
 
+# --- install the cadforge agent skill (optional) ---
+# Teaches AI agents how to drive cadforge. Skipped when npx is unavailable or
+# $env:SKIP_SKILL is set; a failure here never fails the binary install above.
+$Skill      = "cadforge"
+$SkillsRepo = "https://github.com/UniverLab/skills"
+if ($env:SKIP_SKILL) {
+    Info "skill" "skipped (SKIP_SKILL set)"
+} elseif (Get-Command npx -ErrorAction SilentlyContinue) {
+    Info "skill" "adding '$Skill' (npx skills add)"
+    try {
+        & npx -y skills add $SkillsRepo --skill $Skill
+        if ($LASTEXITCODE -eq 0) {
+            Info "skill" "installed"
+        } else {
+            Info "skill" "skipped - add later with: npx skills add $SkillsRepo --skill $Skill"
+        }
+    } catch {
+        Info "skill" "skipped - add later with: npx skills add $SkillsRepo --skill $Skill"
+    }
+} else {
+    Info "skill" "npx not found - add later with: npx skills add $SkillsRepo --skill $Skill"
+}
+
 # --- verify ---
 $ver = & "$InstallDir\$Binary" --version 2>$null
 Info "done" $ver

@@ -30,6 +30,8 @@ cadspec <command> [options]
 | `cadspec serve --open --port <p>` | Open browser automatically on a custom port |
 | `cadspec preview` | Faithful PNG render + `preview.meta.json` |
 | `cadspec preview --format svg` | Vector SVG preview (same renderer) |
+| `cadspec preview --3d` | Axonometric 3D view (extrusions + solids) |
+| `cadspec preview --format gltf` | Export the 3D solids to `scene.gltf` (interactive 3D / interchange) |
 | `cadspec preview --highlight <ids>` | Amber markers around specific entities |
 | `cadspec preview --width <w> -H <h>` | Custom resolution |
 | `cadspec preview --layer <name>` | Preview a specific layer only |
@@ -63,4 +65,5 @@ cadspec <command> [options]
 |------|-------------|
 | `output.dxf` | Default build output |
 | `preview.png` / `preview.svg` | Preview renders |
+| `scene.gltf` | 3D scene export (glTF 2.0, self-contained) |
 | `preview.meta.json` | Per-entity bounding boxes (world + pixel coordinates) |

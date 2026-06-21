@@ -1,4 +1,4 @@
-# CADforge — Especificación y Roadmap v1.0
+# CADspec — Especificación y Roadmap v1.0
 
 > Arquitectura como Código — motor determinista de geometría descriptiva para diseño arquitectónico reproducible, versionable y potenciado por agentes de IA.
 
@@ -6,13 +6,13 @@
 
 ## 1. Visión
 
-El diseño arquitectónico actual sufre de **entropía gráfica**: los planos son colecciones de líneas sin semántica, imposibles de versionar, comparar o automatizar. CADforge propone un cambio de paradigma:
+El diseño arquitectónico actual sufre de **entropía gráfica**: los planos son colecciones de líneas sin semántica, imposibles de versionar, comparar o automatizar. CADspec propone un cambio de paradigma:
 
 **El plano no se dibuja, se declara.**
 
 Al igual que el código fuente de software, un espacio arquitectónico es el resultado de un lenguaje estructurado. Si el código no cambia, el plano es idéntico bit a bit cada vez que se compila. Esto elimina la ambigüedad del clic humano, habilita `git diff` sobre planos, y permite que los agentes de IA generen y modifiquen diseños con precisión quirúrgica.
 
-CADforge no es un programa de dibujo. Es la infraestructura para que la arquitectura sea una **ciencia de datos reproducible**.
+CADspec no es un programa de dibujo. Es la infraestructura para que la arquitectura sea una **ciencia de datos reproducible**.
 
 ---
 
@@ -21,26 +21,26 @@ CADforge no es un programa de dibujo. Es la infraestructura para que la arquitec
 La arquitectura se divide en tres proyectos independientes que se integran entre sí:
 
 ```
-cadforge          → motor de geometría (librería Rust, crates.io)
-cadforge-cli      → interfaz de línea de comandos (binario Rust, crates.io)
-cadforge-view     → visor gráfico vectorial con modo calco (binario Rust)
+cadspec          → motor de geometría (librería Rust, crates.io)
+cadspec-cli      → interfaz de línea de comandos (binario Rust, crates.io)
+cadspec-view     → visor gráfico vectorial con modo calco (binario Rust)
 ```
 
 ### Separación de responsabilidades
 
 | Proyecto | Tipo | Responsabilidad |
 |---|---|---|
-| `cadforge` | Librería | Parser `.cf`, compilador → DXF, motor de geometría, sistema de capas y constraints |
-| `cadforge-cli` | Binario | Comandos, wizard, build, watch, import/export, integración con agentes |
-| `cadforge-view` | Binario | Visor vectorial estilo consola, modo calco, edición bidireccional → `.cf` |
+| `cadspec` | Librería | Parser `.cf`, compilador → DXF, motor de geometría, sistema de capas y constraints |
+| `cadspec-cli` | Binario | Comandos, wizard, build, watch, import/export, integración con agentes |
+| `cadspec-view` | Binario | Visor vectorial estilo consola, modo calco, edición bidireccional → `.cf` |
 
-La librería `cadforge` es reutilizable por cualquier proyecto Rust — el CLI y el visor son consumidores de ella.
+La librería `cadspec` es reutilizable por cualquier proyecto Rust — el CLI y el visor son consumidores de ella.
 
 ---
 
 ## 3. Formato de Proyecto
 
-Un proyecto CADforge es un directorio con la siguiente estructura:
+Un proyecto CADspec es un directorio con la siguiente estructura:
 
 ```
 mi-proyecto/
@@ -50,7 +50,7 @@ mi-proyecto/
 └── capa-c.cf       ← capa de primitivos (ej: acabados y anotaciones)
 ```
 
-El nombre de cada `.cf` lo define el usuario — CADforge no impone nomenclatura ni semántica de capas. Una capa es simplemente un conjunto de primitivos geométricos agrupados.
+El nombre de cada `.cf` lo define el usuario — CADspec no impone nomenclatura ni semántica de capas. Una capa es simplemente un conjunto de primitivos geométricos agrupados.
 
 ### project.toml
 
@@ -84,7 +84,7 @@ capa-c.belongs_to = "capa-b"
 
 El formato `.cf` es TOML válido. Se eligió TOML sobre JSON por ser más legible para humanos y agentes — menos contexto, más señal. Los agentes de IA que ya conocen TOML pueden generar y modificar archivos `.cf` sin entrenamiento adicional.
 
-**Principio clave:** el lenguaje `.cf` trabaja exclusivamente con **primitivos geométricos**. No existe concepto de "muro", "puerta" o "habitación" en el motor base. Esa semántica es responsabilidad del usuario o de capas de abstracción futuras (`cadforge-arch` en v2+). El motor solo sabe de formas, posiciones, atributos visuales y relaciones espaciales.
+**Principio clave:** el lenguaje `.cf` trabaja exclusivamente con **primitivos geométricos**. No existe concepto de "muro", "puerta" o "habitación" en el motor base. Esa semántica es responsabilidad del usuario o de capas de abstracción futuras (`cadspec-arch` en v2+). El motor solo sabe de formas, posiciones, atributos visuales y relaciones espaciales.
 
 ### Primitivos soportados en v1
 
@@ -206,7 +206,7 @@ Cada archivo `.cf` es una capa independiente. Las capas se orquestan desde `proj
 
 ### Comportamiento al compilar
 
-Cuando `cadforge build` detecta una violación de constraints:
+Cuando `cadspec build` detecta una violación de constraints:
 
 ```
 ⚠ CONSTRAINT VIOLATION
@@ -221,42 +221,42 @@ Las constraints no bloquean el build por defecto — emiten warnings. Se puede c
 
 ---
 
-## 6. cadforge-cli — Comandos
+## 6. cadspec-cli — Comandos
 
 ```bash
 # Inicialización
-cadforge new mi-proyecto          # crea estructura de proyecto
-cadforge init                     # inicializa en directorio existente
+cadspec new mi-proyecto          # crea estructura de proyecto
+cadspec init                     # inicializa en directorio existente
 
 # Compilación
-cadforge build                    # compila todas las capas → DXF
-cadforge build --layer muros      # compila una capa específica
-cadforge build --check            # valida constraints sin generar output
+cadspec build                    # compila todas las capas → DXF
+cadspec build --layer muros      # compila una capa específica
+cadspec build --check            # valida constraints sin generar output
 
 # Desarrollo
-cadforge watch                    # modo watch: recompila al guardar cualquier .cf
+cadspec watch                    # modo watch: recompila al guardar cualquier .cf
 
 # Importación / Migración
-cadforge import archivo.dxf       # convierte DXF existente → .cf (por capas detectadas)
-cadforge import archivo.dxf --layer muros  # importa a capa específica
+cadspec import archivo.dxf       # convierte DXF existente → .cf (por capas detectadas)
+cadspec import archivo.dxf --layer muros  # importa a capa específica
 
 # Visualización
-cadforge view                     # abre cadforge-view con el proyecto actual
-cadforge view --layer muros       # abre solo una capa
+cadspec view                     # abre cadspec-view con el proyecto actual
+cadspec view --layer muros       # abre solo una capa
 
 # Información
-cadforge layers                   # lista capas del proyecto con estado
-cadforge check                    # valida constraints y reporta conflictos
+cadspec layers                   # lista capas del proyecto con estado
+cadspec check                    # valida constraints y reporta conflictos
 
 # Configuración global
-cadforge config set author "Arq. Nombre Apellido"
-cadforge config set units m
-cadforge config show
+cadspec config set author "Arq. Nombre Apellido"
+cadspec config set units m
+cadspec config show
 ```
 
 ---
 
-## 7. cadforge-view — Visor Vectorial
+## 7. cadspec-view — Visor Vectorial
 
 ### Filosofía de diseño
 
@@ -303,7 +303,7 @@ Q           → cerrar visor
 Una de las propuestas de valor más importantes: **migrar lo que ya existe**.
 
 ```bash
-cadforge import plano-existente.dxf
+cadspec import plano-existente.dxf
 ```
 
 El importador:
@@ -314,7 +314,7 @@ El importador:
 5. Genera un `project.toml` con las capas detectadas
 
 ```
-cadforge import plano.dxf
+cadspec import plano.dxf
 
 ✓ Detected 4 layers: MUROS, ESTRUCTURA, COTAS, TEXTO
 ✓ muros.cf        — 23 walls inferred, 4 openings
@@ -345,7 +345,7 @@ Los agentes pueden leer y escribir archivos `.cf` directamente — TOML es un fo
 Y modificar coordenadas y orientaciones en `muros.cf` de forma precisa y auditable.
 
 ### ghscaff
-Plantilla `cadforge` en `ghscaff` para inicializar nuevos proyectos CADforge con estructura de repo correcta desde el primer commit.
+Plantilla `cadspec` en `ghscaff` para inicializar nuevos proyectos CADspec con estructura de repo correcta desde el primer commit.
 
 ---
 
@@ -373,22 +373,22 @@ Plantilla `cadforge` en `ghscaff` para inicializar nuevos proyectos CADforge con
 - [ ] Compilador `.cf` → DXF (2D, planos de planta)
 - [ ] Sistema de capas con `project.toml`
 - [ ] Constraints básicas: `parent`, `belongs_to`
-- [ ] `cadforge build` y `cadforge watch`
+- [ ] `cadspec build` y `cadspec watch`
 - [ ] Live preview vía visor externo (LibreCAD, FreeCAD)
-- [ ] Publicación en crates.io: `cadforge` (librería) + `cadforge-cli`
+- [ ] Publicación en crates.io: `cadspec` (librería) + `cadspec-cli`
 
 ### v1
 - [ ] Importador DXF → `.cf` con detección automática de primitivos
-- [ ] `cadforge-view` — visor vectorial propio (fondo negro, líneas vectoriales)
+- [ ] `cadspec-view` — visor vectorial propio (fondo negro, líneas vectoriales)
   - Modo lectura con zoom/pan y toggle de capas
   - Modo edición básico con escritura bidireccional al guardar
   - Modo calco con ventana semi-transparente
 - [ ] Constraints con warnings en build: `spatial_dependency`
 - [ ] Achurados estándar: ansi31, ansi32, ansi33, ansi34, solid
-- [ ] Publicación `cadforge-view` en crates.io
+- [ ] Publicación `cadspec-view` en crates.io
 
 ### v2
-- [ ] `cadforge-arch` — capa de abstracción arquitectónica sobre primitivos
+- [ ] `cadspec-arch` — capa de abstracción arquitectónica sobre primitivos
   - Objetos semánticos: `wall`, `opening`, `room`, `column`, `slab`
   - Construidos sobre primitivos del motor base
   - Publicado como crate independiente
@@ -413,6 +413,6 @@ Plantilla `cadforge` en `ghscaff` para inicializar nuevos proyectos CADforge con
 
 ## 13. Contexto Académico
 
-`cadforge` es el proyecto de tesis de especialización en IA con enfoque en diseño arquitectónico. La hipótesis central es que tratar la arquitectura como código — con determinismo, versionado y agentes — representa un cambio de paradigma en el flujo de trabajo del diseño arquitectónico.
+`cadspec` es el proyecto de tesis de especialización en IA con enfoque en diseño arquitectónico. La hipótesis central es que tratar la arquitectura como código — con determinismo, versionado y agentes — representa un cambio de paradigma en el flujo de trabajo del diseño arquitectónico.
 
 El proyecto vive bajo [`univerlab`](https://github.com/univerlab) junto a `texforge`, `gitkit`, `ghscaff` y `agent-canopy`, siguiendo los mismos principios: binario standalone, offline first, sin scope creep.

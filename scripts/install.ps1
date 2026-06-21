@@ -1,4 +1,4 @@
-# install.ps1 — download and install cadforge on Windows
+# install.ps1 — download and install cadspec on Windows
 # Usage: irm https://raw.githubusercontent.com/UniverLab/cadforge/main/scripts/install.ps1 | iex
 #
 # Options (set as env vars before running):
@@ -8,7 +8,7 @@
 $ErrorActionPreference = "Stop"
 
 $Repo       = "UniverLab/cadforge"
-$Binary     = "cadforge.exe"
+$Binary     = "cadspec.exe"
 $Target     = "x86_64-pc-windows-msvc"
 $InstallDir = if ($env:INSTALL_DIR) { $env:INSTALL_DIR } else { "$env:USERPROFILE\.local\bin" }
 
@@ -43,9 +43,9 @@ if ($env:VERSION) {
 }
 
 # --- download ---
-$Archive = "cadforge-$Tag-$Target.zip"
+$Archive = "cadspec-$Tag-$Target.zip"
 $Url     = "https://github.com/$Repo/releases/download/$Tag/$Archive"
-$Tmp     = Join-Path $env:TEMP "cadforge-install"
+$Tmp     = Join-Path $env:TEMP "cadspec-install"
 New-Item -ItemType Directory -Force -Path $Tmp | Out-Null
 
 Info "download" $Url
@@ -76,10 +76,10 @@ if ($userPath -notlike "*$InstallDir*") {
 # --- cleanup ---
 Remove-Item $Tmp -Recurse -Force
 
-# --- install the cadforge agent skill (optional) ---
-# Teaches AI agents how to drive cadforge. Skipped when npx is unavailable or
+# --- install the cadspec agent skill (optional) ---
+# Teaches AI agents how to drive cadspec. Skipped when npx is unavailable or
 # $env:SKIP_SKILL is set; a failure here never fails the binary install above.
-$Skill      = "cadforge"
+$Skill      = "cadspec"
 $SkillsRepo = "https://github.com/UniverLab/skills"
 if ($env:SKIP_SKILL) {
     Info "skill" "skipped (SKIP_SKILL set)"
@@ -103,4 +103,4 @@ if ($env:SKIP_SKILL) {
 $ver = & "$InstallDir\$Binary" --version 2>$null
 Info "done" $ver
 Write-Host ""
-Info "ready" "Run 'cadforge --help' to get started!"
+Info "ready" "Run 'cadspec --help' to get started!"

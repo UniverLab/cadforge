@@ -1,14 +1,14 @@
 //! Integration tests — full pipeline from .cf files to DXF output.
 
-use cadforge::compiler::compile_project;
-use cadforge::importer::import_dxf;
+use cadspec::compiler::compile_project;
+use cadspec::importer::import_dxf;
 use std::fs;
 use std::path::Path;
 
 #[test]
 fn compile_example_project_produces_valid_dxf() {
     let project_dir = Path::new("examples/vivienda");
-    let output = Path::new("/tmp/cadforge_compile_test_output.dxf");
+    let output = Path::new("/tmp/cadspec_compile_test_output.dxf");
 
     // Remove previous output if exists
     let _ = fs::remove_file(output);
@@ -49,13 +49,13 @@ fn compile_example_project_produces_valid_dxf() {
 
 #[test]
 fn compile_project_fails_on_missing_project_toml() {
-    let result = compile_project(Path::new("/tmp/nonexistent_cadforge_dir"), None, None);
+    let result = compile_project(Path::new("/tmp/nonexistent_cadspec_dir"), None, None);
     assert!(result.is_err());
 }
 
 #[test]
 fn check_project_validates_without_generating_dxf() {
-    use cadforge::compiler::check_project;
+    use cadspec::compiler::check_project;
 
     let project_dir = Path::new("examples/vivienda");
     let output = project_dir.join("check_should_not_exist.dxf");
@@ -110,7 +110,7 @@ to = [8.5, 0.0]
 offset = 0.5
 "##;
 
-    let cf: cadforge::model::CfFile = toml::from_str(toml).unwrap();
+    let cf: cadspec::model::CfFile = toml::from_str(toml).unwrap();
     assert_eq!(cf.lines.len(), 1);
     assert_eq!(cf.polylines.len(), 1);
     assert!(cf.polylines[0].common.weight.is_some());
@@ -141,7 +141,7 @@ to = [10.0, 2.0]
 style = "dashdot"
 "##;
 
-    let cf: cadforge::model::CfFile = toml::from_str(toml).unwrap();
+    let cf: cadspec::model::CfFile = toml::from_str(toml).unwrap();
     assert_eq!(cf.lines.len(), 3);
     assert!(cf.lines[0].common.style.is_some());
 }
@@ -161,15 +161,15 @@ scale = 1.0
 angle = 45.0
 "##;
 
-    let cf: cadforge::model::CfFile = toml::from_str(toml).unwrap();
+    let cf: cadspec::model::CfFile = toml::from_str(toml).unwrap();
     assert_eq!(cf.hatches.len(), 1);
     assert_eq!(cf.hatches[0].boundary, "pl-room");
 
     // Compile it to verify no panic
-    use cadforge::dxf_writer::DxfWriter;
+    use cadspec::dxf_writer::DxfWriter;
     let mut writer = DxfWriter::new();
     writer.add_layer("test", 7);
-    cadforge::compiler::compile_cf_public(&mut writer, &cf, "test");
+    cadspec::compiler::compile_cf_public(&mut writer, &cf, "test");
 }
 
 #[test]
@@ -181,16 +181,16 @@ points = [[0.0, 0.0], [4.0, 0.0], [4.0, 3.0], [0.0, 3.0]]
 color = "#808080"
 "##;
 
-    let cf: cadforge::model::CfFile = toml::from_str(toml).unwrap();
+    let cf: cadspec::model::CfFile = toml::from_str(toml).unwrap();
     assert_eq!(cf.fills.len(), 1);
 
     // Compile and verify it produces a DXF with SOLID entities
-    use cadforge::dxf_writer::DxfWriter;
+    use cadspec::dxf_writer::DxfWriter;
     let mut writer = DxfWriter::new();
     writer.add_layer("test", 7);
-    cadforge::compiler::compile_cf_public(&mut writer, &cf, "test");
+    cadspec::compiler::compile_cf_public(&mut writer, &cf, "test");
 
-    let path = std::path::PathBuf::from("/tmp/cadforge_test_fill.dxf");
+    let path = std::path::PathBuf::from("/tmp/cadspec_test_fill.dxf");
     writer.save(&path).unwrap();
     let content = fs::read_to_string(&path).unwrap();
     assert!(content.contains("SOLID"));
@@ -251,7 +251,7 @@ belongs_to = "room-1"
 
 #[test]
 fn compile_allows_constraint_warnings_when_not_strict() {
-    let dir = Path::new("/tmp/cadforge_constraints_non_strict");
+    let dir = Path::new("/tmp/cadspec_constraints_non_strict");
     let _ = fs::remove_dir_all(dir);
     write_constraints_fixture(dir, false);
 
@@ -269,7 +269,7 @@ fn compile_allows_constraint_warnings_when_not_strict() {
 
 #[test]
 fn compile_fails_on_constraint_violation_when_strict() {
-    let dir = Path::new("/tmp/cadforge_constraints_strict");
+    let dir = Path::new("/tmp/cadspec_constraints_strict");
     let _ = fs::remove_dir_all(dir);
     write_constraints_fixture(dir, true);
 
@@ -284,7 +284,7 @@ fn compile_fails_on_constraint_violation_when_strict() {
 
 #[test]
 fn render_svg_on_example_project() {
-    let svg = cadforge::svg::render_svg(Path::new("examples/vivienda"), None, 1600).unwrap();
+    let svg = cadspec::svg::render_svg(Path::new("examples/vivienda"), None, 1600).unwrap();
     assert!(svg.starts_with("<svg"));
     assert!(svg.ends_with("</svg>"));
     // Layer groups for every project layer
@@ -301,7 +301,7 @@ fn render_svg_on_example_project() {
 
 #[test]
 fn project_report_is_serializable_and_complete() {
-    let report = cadforge::compiler::project_report(Path::new("examples/vivienda")).unwrap();
+    let report = cadspec::compiler::project_report(Path::new("examples/vivienda")).unwrap();
     assert!(report.total_entities > 0);
     assert_eq!(report.layers.len(), 5);
     assert!(report.layers.iter().all(|l| !l.missing));
@@ -316,10 +316,10 @@ fn taller_example_expands_arrays_and_mirrors() {
     let dir = Path::new("examples/taller");
 
     // Expanded entity counts: 16 treads + 16 teeth + mirrored geometry
-    let report = cadforge::compiler::project_report(dir).unwrap();
+    let report = cadspec::compiler::project_report(dir).unwrap();
     assert_eq!(report.total_entities, 49);
 
-    let svg = cadforge::svg::render_svg(dir, None, 1200).unwrap();
+    let svg = cadspec::svg::render_svg(dir, None, 1200).unwrap();
     // 15 generated tread copies with derived ids
     let tread_copies = svg.matches(r#"data-id="pl-huella@"#).count();
     assert_eq!(tread_copies, 15);
@@ -330,7 +330,7 @@ fn taller_example_expands_arrays_and_mirrors() {
     assert!(svg.contains(">2.900<"));
 
     // The DXF compiles with the expanded geometry
-    let out = Path::new("/tmp/cadforge_taller.dxf");
+    let out = Path::new("/tmp/cadspec_taller.dxf");
     let _ = fs::remove_file(out);
     compile_project(dir, None, Some(out)).unwrap();
     assert!(out.exists());
@@ -339,7 +339,7 @@ fn taller_example_expands_arrays_and_mirrors() {
 
 #[test]
 fn preview_renders_faithful_png_with_metadata_and_highlights() {
-    let dir = Path::new("/tmp/cadforge_preview_test");
+    let dir = Path::new("/tmp/cadspec_preview_test");
     let _ = fs::remove_dir_all(dir);
     fs::create_dir_all(dir).unwrap();
     fs::write(
@@ -377,17 +377,17 @@ offset = -0.6
     )
     .unwrap();
 
-    cadforge::preview::generate_preview(
+    cadspec::preview::generate_preview(
         dir,
         800,
         800,
         None,
         &["rc-room".to_string()],
-        cadforge::preview::PreviewOutputs {
+        cadspec::preview::PreviewOutputs {
             png: true,
             svg: true,
         },
-        cadforge::preview::PreviewView::Plan,
+        cadspec::preview::PreviewView::Plan,
     )
     .unwrap();
 
@@ -407,13 +407,13 @@ offset = -0.6
 }
 
 #[test]
-fn import_generated_dxf_creates_cadforge_project() {
+fn import_generated_dxf_creates_cadspec_project() {
     let source = Path::new("examples/vivienda");
     let source_output = source.join("output.dxf");
     let _ = fs::remove_file(&source_output);
     compile_project(source, None, Some(&source_output)).unwrap();
 
-    let imported = Path::new("/tmp/cadforge_import_test");
+    let imported = Path::new("/tmp/cadspec_import_test");
     let _ = fs::remove_dir_all(imported);
     import_dxf(&source_output, imported, None).unwrap();
 
@@ -430,7 +430,7 @@ fn import_generated_dxf_creates_cadforge_project() {
 
 #[test]
 fn import_roundtrip_recovers_dims_styles_and_colors() {
-    let dir = Path::new("/tmp/cadforge_roundtrip_fidelity");
+    let dir = Path::new("/tmp/cadspec_roundtrip_fidelity");
     let _ = fs::remove_dir_all(dir);
     fs::create_dir_all(dir).unwrap();
     fs::write(
@@ -476,7 +476,7 @@ offset = -1.2
     let dxf_path = dir.join("output.dxf");
     compile_project(dir, None, Some(&dxf_path)).unwrap();
 
-    let imported = Path::new("/tmp/cadforge_roundtrip_fidelity_out");
+    let imported = Path::new("/tmp/cadspec_roundtrip_fidelity_out");
     let _ = fs::remove_dir_all(imported);
     import_dxf(&dxf_path, imported, None).unwrap();
     let cf = fs::read_to_string(imported.join("plano.cf")).unwrap();

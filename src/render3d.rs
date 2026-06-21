@@ -1,6 +1,6 @@
 //! 3D view renderer — extrudes `.cf` geometry into solids and projects them.
 //!
-//! cadforge geometry is declared in 2D plan coordinates. Any primitive can
+//! cadspec geometry is declared in 2D plan coordinates. Any primitive can
 //! carry an `extrude` height (and optional `elevation`): a closed shape becomes
 //! a solid prism, a line or open polyline becomes a vertical wall. This module
 //! projects that geometry with a fixed axonometric (isometric) camera, sorts

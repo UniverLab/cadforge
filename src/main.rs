@@ -1,20 +1,20 @@
 use anyhow::{bail, Result};
-use cadforge::compiler::{check_project, compile_project, list_layers, project_report};
-use cadforge::config::{config_set, config_show};
-use cadforge::fmt::format_project;
-use cadforge::importer::import_dxf;
-use cadforge::preview::{generate_plano, generate_preview, PreviewOutputs, PreviewView};
-use cadforge::scaffold::{create_project, init_project};
-use cadforge::schema::print_schema;
-use cadforge::serve::{serve_daemon, serve_project, serve_stop};
-use cadforge::viewer::view_project;
-use cadforge::watch::watch_project;
+use cadspec::compiler::{check_project, compile_project, list_layers, project_report};
+use cadspec::config::{config_set, config_show};
+use cadspec::fmt::format_project;
+use cadspec::importer::import_dxf;
+use cadspec::preview::{generate_plano, generate_preview, PreviewOutputs, PreviewView};
+use cadspec::scaffold::{create_project, init_project};
+use cadspec::schema::print_schema;
+use cadspec::serve::{serve_daemon, serve_project, serve_stop};
+use cadspec::viewer::view_project;
+use cadspec::watch::watch_project;
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(
-    name = "cadforge",
+    name = "cadspec",
     version,
     about = "CAD as code — declarative geometry → DXF"
 )]
@@ -25,12 +25,12 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Create a new CADforge project
+    /// Create a new CADspec project
     New {
         /// Project name (creates a directory with this name)
         name: String,
     },
-    /// Initialize CADforge in the current directory
+    /// Initialize CADspec in the current directory
     Init,
     /// Compile project (.cf files) → DXF output
     Build {
@@ -128,7 +128,7 @@ enum Commands {
         #[arg(short, long)]
         path: Option<PathBuf>,
     },
-    /// Import a DXF file into CADforge project files
+    /// Import a DXF file into CADspec project files
     Import {
         /// Input DXF file
         input: PathBuf,
@@ -148,7 +148,7 @@ enum Commands {
         #[arg(short, long)]
         layer: Option<String>,
     },
-    /// Global cadforge configuration
+    /// Global cadspec configuration
     Config {
         #[command(subcommand)]
         command: ConfigCommands,
@@ -310,7 +310,7 @@ fn resolve_project_dir(path: Option<PathBuf>) -> Result<PathBuf> {
     let dir = path.unwrap_or_else(|| PathBuf::from("."));
     if !dir.join("project.toml").exists() {
         bail!(
-            "No project.toml found in '{}'. Run `cadforge new` to create a project.",
+            "No project.toml found in '{}'. Run `cadspec new` to create a project.",
             dir.display()
         );
     }

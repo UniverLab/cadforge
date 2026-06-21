@@ -1,16 +1,16 @@
-# cadforge demo — terminal (CAD as code) + the live SVG preview in a browser pane.
+# cadspec demo — terminal (CAD as code) + the live SVG preview in a browser pane.
 #
 # Generate the GIF with DemoStage (https://github.com/UniverLab/demo-stage):
 #   demo check demo/demo.toml
-#   demo export demo/demo.toml --target gif      # → demo/dist/cadforge.gif
+#   demo export demo/demo.toml --target gif      # → demo/dist/cadspec.gif
 #
 # NOTE: browser panes are captured *after* the terminal run, so the
-# `cadforge serve` background server must still be up at capture time — this demo
-# deliberately does NOT stop it. Afterwards: `cd /tmp/cadforge-demo/bracket &&
-# cadforge serve --stop`. Adjust commands/url to your build if they drift.
+# `cadspec serve` background server must still be up at capture time — this demo
+# deliberately does NOT stop it. Afterwards: `cd /tmp/cadspec-demo/bracket &&
+# cadspec serve --stop`. Adjust commands/url to your build if they drift.
 
 [demo]
-name = "cadforge"
+name = "cadspec"
 output_dir = "demo/dist"
 
 [typing]
@@ -20,7 +20,7 @@ seed = 7
 
 [env]
 isolated = true
-setup_script = "rm -rf /tmp/cadforge-demo && mkdir -p /tmp/cadforge-demo && cd /tmp/cadforge-demo"
+setup_script = "rm -rf /tmp/cadspec-demo && mkdir -p /tmp/cadspec-demo && cd /tmp/cadspec-demo"
 
 [layout]
 width = 1280
@@ -56,7 +56,7 @@ text = "1 — scaffold a CAD project"
 
 [[timeline]]
 action = "type"
-text = "cadforge new bracket && cd bracket"
+text = "cadspec new bracket && cd bracket"
 human_salt = true
 
 [[timeline]]
@@ -73,7 +73,7 @@ text = "2 — start the live preview"
 
 [[timeline]]
 action = "type"
-text = "cadforge serve"
+text = "cadspec serve"
 human_salt = true
 
 [[timeline]]

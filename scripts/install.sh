@@ -1,10 +1,10 @@
 #!/bin/sh
-# install.sh — download and install cadforge from GitHub Releases
+# install.sh — download and install cadspec from GitHub Releases
 # Usage: curl -fsSL https://raw.githubusercontent.com/UniverLab/cadforge/main/scripts/install.sh | sh
 set -eu
 
 REPO="UniverLab/cadforge"
-BINARY="cadforge"
+BINARY="cadspec"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 
 info() { printf '  \033[1;34m%s\033[0m %s\n' "$1" "$2"; }
@@ -33,7 +33,7 @@ TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
 # ============================================================
-# 1. Install cadforge
+# 1. Install cadspec
 # ============================================================
 
 # --- resolve version ---
@@ -88,7 +88,7 @@ if [ -n "$PATHS_TO_ADD" ]; then
     if [ -f "$profile" ]; then
       for dir in $PATHS_TO_ADD; do
         if ! grep -q "export PATH=\"$dir:\$PATH\"" "$profile" 2>/dev/null; then
-          printf '\n# Added by cadforge installer\nexport PATH="%s:$PATH"\n' "$dir" >> "$profile"
+          printf '\n# Added by cadspec installer\nexport PATH="%s:$PATH"\n' "$dir" >> "$profile"
           info "updated" "$profile"
         fi
       done
@@ -97,12 +97,12 @@ if [ -n "$PATHS_TO_ADD" ]; then
 fi
 
 # ============================================================
-# 3. Install the cadforge agent skill (optional)
+# 3. Install the cadspec agent skill (optional)
 # ============================================================
-# Teaches AI agents how to drive cadforge. Skipped when npx is unavailable or
+# Teaches AI agents how to drive cadspec. Skipped when npx is unavailable or
 # SKIP_SKILL is set; a failure here never fails the binary install above.
 
-SKILL="cadforge"
+SKILL="cadspec"
 SKILLS_REPO="https://github.com/UniverLab/skills"
 
 if [ -n "${SKIP_SKILL:-}" ]; then
@@ -124,4 +124,4 @@ fi
 
 info "done" "$($INSTALL_DIR/$BINARY --version 2>/dev/null || echo "$BINARY installed")"
 echo ""
-info "ready" "Run 'cadforge --help' to get started!"
+info "ready" "Run 'cadspec --help' to get started!"

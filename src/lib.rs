@@ -1,4 +1,4 @@
-//! cadforge — deterministic geometry engine for reproducible architectural design.
+//! cadspec — deterministic geometry engine for reproducible architectural design.
 //!
 //! Pipeline: `.cf` (TOML) → intermediate model → DXF output.
 

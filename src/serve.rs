@@ -1,4 +1,4 @@
-//! Live preview server — `cadforge serve`.
+//! Live preview server — `cadspec serve`.
 //!
 //! Watches the project files and serves an auto-reloading SVG preview in the
 //! browser. The vibecoding loop: an agent (or human) edits `.cf` files, the
@@ -79,7 +79,7 @@ pub fn serve_project(project_dir: &Path, port: u16, open: bool) -> Result<()> {
         .with_context(|| format!("Cannot bind 127.0.0.1:{} (port in use?)", port))?;
     let url = format!("http://127.0.0.1:{}", port);
 
-    println!("◉ cadforge serve — {}", project.project.name);
+    println!("◉ cadspec serve — {}", project.project.name);
     println!("  Preview: {}", url);
     println!("  Watching: {}", project_dir.display());
     println!();
@@ -112,7 +112,7 @@ pub fn serve_project(project_dir: &Path, port: u16, open: bool) -> Result<()> {
 // we never claim "running" for a server that failed to come up.
 
 fn runtime_dir(project_dir: &Path) -> PathBuf {
-    project_dir.join(".cadforge")
+    project_dir.join(".cadspec")
 }
 
 fn pid_path(project_dir: &Path) -> PathBuf {
@@ -168,9 +168,9 @@ pub fn serve_daemon(project_dir: &Path, port: u16, open: bool) -> Result<()> {
     let url = format!("http://127.0.0.1:{}", port);
 
     if let Some(pid) = running_pid(&project_dir) {
-        println!("◉ cadforge serve already running (pid {pid})");
+        println!("◉ cadspec serve already running (pid {pid})");
         println!("  Preview: {url}");
-        println!("  Stop with: cadforge serve --stop");
+        println!("  Stop with: cadspec serve --stop");
         if open {
             open_browser(&url);
         }
@@ -187,7 +187,7 @@ pub fn serve_daemon(project_dir: &Path, port: u16, open: bool) -> Result<()> {
     let log = log_path(&project_dir);
     let log_file = File::create(&log)?;
 
-    let exe = std::env::current_exe().context("cannot locate cadforge executable")?;
+    let exe = std::env::current_exe().context("cannot locate cadspec executable")?;
     let mut cmd = Command::new(exe);
     cmd.arg("serve")
         .arg("--foreground")
@@ -209,10 +209,10 @@ pub fn serve_daemon(project_dir: &Path, port: u16, open: bool) -> Result<()> {
     fs::write(pid_path(&project_dir), pid.to_string())?;
 
     if wait_until_ready(port, Duration::from_secs(5)) {
-        println!("◉ cadforge serve — running in background (pid {pid})");
+        println!("◉ cadspec serve — running in background (pid {pid})");
         println!("  Preview: {url}");
         println!("  Logs:    {}", log.display());
-        println!("  Stop with: cadforge serve --stop");
+        println!("  Stop with: cadspec serve --stop");
         if open {
             open_browser(&url);
         }
@@ -236,7 +236,7 @@ pub fn serve_stop(project_dir: &Path, _port: u16) -> Result<()> {
 
     let Some(pid) = running_pid(&project_dir) else {
         let _ = fs::remove_file(&pid_file); // clean up any stale pidfile
-        println!("No cadforge serve daemon running for this project.");
+        println!("No cadspec serve daemon running for this project.");
         return Ok(());
     };
 
@@ -248,7 +248,7 @@ pub fn serve_stop(project_dir: &Path, _port: u16) -> Result<()> {
     let _ = fs::remove_file(&pid_file);
 
     if stopped {
-        println!("✓ Stopped cadforge serve (pid {pid}).");
+        println!("✓ Stopped cadspec serve (pid {pid}).");
         Ok(())
     } else {
         bail!("failed to stop process {pid}")
@@ -646,7 +646,7 @@ const INDEX_HTML: &str = r##"<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>{{PROJECT_NAME}} — cadforge live</title>
+<title>{{PROJECT_NAME}} — cadspec live</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #0d0d0d; color: #ddd; font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -710,7 +710,7 @@ const INDEX_HTML: &str = r##"<!DOCTYPE html>
 <header>
   <span id="dot"></span>
   <span id="title">{{PROJECT_NAME}}</span>
-  <span class="tag">cadforge live</span>
+  <span class="tag">cadspec live</span>
   <span class="tag" id="version">v0</span>
   <button id="btn3d" title="extruded 3D view (key: 3)">3D</button>
   <button id="btnfit" title="fit to view (key: F)">fit</button>
@@ -993,7 +993,7 @@ window.addEventListener('keydown', e => {
 (function () {
   const sidebar = document.getElementById('sidebar');
   const rz = document.getElementById('layers-resizer');
-  const KEY = 'cadforge.layersWidth', MIN = 130, MAX = 560, DEF = 200;
+  const KEY = 'cadspec.layersWidth', MIN = 130, MAX = 560, DEF = 200;
   const saved = parseInt(localStorage.getItem(KEY) || '', 10);
   if (saved >= MIN && saved <= MAX) sidebar.style.width = saved + 'px';
   let dragging = false;
@@ -1021,7 +1021,7 @@ window.addEventListener('keydown', e => {
   const sidebar = document.getElementById('sidebar');
   const pane = document.getElementById('planos-pane');
   const div = document.getElementById('pane-divider');
-  const KEY = 'cadforge.planosHeight';
+  const KEY = 'cadspec.planosHeight';
   const saved = parseInt(localStorage.getItem(KEY) || '', 10);
   if (saved >= 48) pane.style.height = saved + 'px';
   let dragging = false;

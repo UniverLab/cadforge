@@ -1,4 +1,4 @@
-//! DXF importer — converts DXF layers/entities into CADforge `.cf` + `project.toml`.
+//! DXF importer — converts DXF layers/entities into CADspec `.cf` + `project.toml`.
 
 use crate::color::aci_to_hex;
 use anyhow::{anyhow, Context, Result};
@@ -310,7 +310,7 @@ fn dim_offset(from: [f64; 2], to: [f64; 2], insertion: [f64; 2]) -> Option<f64> 
     Some((insertion[0] - mid[0]) * nx + (insertion[1] - mid[1]) * ny)
 }
 
-/// Drop the extension/dimension lines and label text that `cadforge build`
+/// Drop the extension/dimension lines and label text that `cadspec build`
 /// emits alongside each DIMENSION entity for viewer compatibility; the
 /// re-created `[[dim]]` regenerates all of them. Foreign DXFs are unaffected
 /// (their dimension graphics live in blocks, not loose entities).

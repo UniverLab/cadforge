@@ -53,7 +53,7 @@ pub fn format_project(project_dir: &Path, check_only: bool) -> Result<()> {
     }
 
     if check_only && changed > 0 {
-        anyhow::bail!("{changed} file(s) need formatting. Run `cadforge fmt` to fix.");
+        anyhow::bail!("{changed} file(s) need formatting. Run `cadspec fmt` to fix.");
     }
     if !check_only {
         println!("✓ {changed} file(s) formatted");

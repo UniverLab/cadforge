@@ -418,7 +418,7 @@ mod tests {
         w.circle(5.0, 5.0, 2.0, "MUROS", &s);
         w.rect(1.0, 1.0, 3.0, 4.0, "MUROS", &s);
 
-        let path = PathBuf::from("/tmp/cadforge_test_basic.dxf");
+        let path = PathBuf::from("/tmp/cadspec_test_basic.dxf");
         w.save(&path).unwrap();
         assert!(path.exists());
     }
@@ -434,7 +434,7 @@ mod tests {
         };
         w.line(0.0, 0.0, 1.0, 1.0, "TEST", &style);
 
-        let path = PathBuf::from("/tmp/cadforge_test_styled.dxf");
+        let path = PathBuf::from("/tmp/cadspec_test_styled.dxf");
         w.save(&path).unwrap();
         assert!(path.exists());
     }

@@ -1,4 +1,4 @@
-# Contributing to cadforge
+# Contributing to cadspec
 
 Thank you for your interest in contributing!
 
@@ -6,7 +6,7 @@ Thank you for your interest in contributing!
 
 ```bash
 git clone https://github.com/UniverLab/cadforge.git
-cd cadforge
+cd cadspec
 cargo build
 cargo test
 ```

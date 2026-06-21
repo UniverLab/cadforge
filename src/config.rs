@@ -1,4 +1,4 @@
-//! Global configuration for cadforge CLI defaults.
+//! Global configuration for cadspec CLI defaults.
 
 use anyhow::{anyhow, Context, Result};
 use std::fs;
@@ -9,7 +9,7 @@ const SUPPORTED_KEYS: &[&str] = &["author", "units"];
 
 fn config_path() -> Result<PathBuf> {
     let home = std::env::var("HOME").context("HOME environment variable is not set")?;
-    Ok(PathBuf::from(home).join(".cadforge").join("config.toml"))
+    Ok(PathBuf::from(home).join(".cadspec").join("config.toml"))
 }
 
 fn load_document(path: &PathBuf) -> Result<DocumentMut> {

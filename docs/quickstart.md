@@ -9,18 +9,18 @@ order: 3
 ## 1. Create a project
 
 ```bash
-cadforge new my-house
+cadspec new my-house
 cd my-house
 ```
 
-`cadforge new` scaffolds a complete multi-layer project (walls, doors,
+`cadspec new` scaffolds a complete multi-layer project (walls, doors,
 furniture, dimensions) with meaningful architectural examples. To adopt
-cadforge in an existing directory use `cadforge init`.
+cadspec in an existing directory use `cadspec init`.
 
 ## 2. Preview it live
 
 ```bash
-cadforge serve --open
+cadspec serve --open
 ```
 
 A local server opens the plan in your browser. Edit any `.cf` file and
@@ -44,23 +44,23 @@ to = [8.5, 0.0]
 weight = 0.50
 ```
 
-Run `cadforge schema` for the complete language reference, or read
+Run `cadspec schema` for the complete language reference, or read
 [The .cf Format](cf-format.md).
 
 ## 4. Validate and format
 
 ```bash
-cadforge check     # validate geometry and constraints, no output files
-cadforge fmt       # normalize .cf files
+cadspec check     # validate geometry and constraints, no output files
+cadspec fmt       # normalize .cf files
 ```
 
 ## 5. Compile to DXF
 
 ```bash
-cadforge build                       # default output.dxf
-cadforge build --output plano.dxf    # custom output path
-cadforge build --layer muros         # single layer
+cadspec build                       # default output.dxf
+cadspec build --output plano.dxf    # custom output path
+cadspec build --layer muros         # single layer
 ```
 
-The output is deterministic and AutoCAD-compatible. `cadforge watch`
+The output is deterministic and AutoCAD-compatible. `cadspec watch`
 rebuilds automatically while you edit.

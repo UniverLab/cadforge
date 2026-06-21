@@ -14,12 +14,12 @@
 
 <p align="center">
   <a href="https://github.com/UniverLab/cadforge/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/UniverLab/cadforge/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI"/></a>
-  <a href="https://crates.io/crates/cadforge"><img src="https://img.shields.io/crates/v/cadforge?style=for-the-badge&logo=rust&logoColor=white" alt="Crates.io"/></a>
+  <a href="https://crates.io/crates/cadspec"><img src="https://img.shields.io/crates/v/cadspec?style=for-the-badge&logo=rust&logoColor=white" alt="Crates.io"/></a>
   <img src="https://img.shields.io/badge/Status-Active-27AE60?style=for-the-badge" alt="Status"/>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-2E8B57?style=for-the-badge" alt="License"/></a>
 </p>
 
-cadforge is a **CAD as code** CLI tool and Rust library for declarative CAD modeling. Write geometry as code in `.cf` TOML format, watch it live in the browser, and compile to DXF — built for humans and AI agents working together.
+cadspec is a **CAD as code** CLI tool and Rust library for declarative CAD modeling. Write geometry as code in `.cf` TOML format, watch it live in the browser, and compile to DXF — built for humans and AI agents working together.
 
 ---
 
@@ -28,29 +28,29 @@ cadforge is a **CAD as code** CLI tool and Rust library for declarative CAD mode
 The core loop: **describe geometry in TOML, see it instantly, iterate.**
 
 ```bash
-cadforge new casa && cd casa
-cadforge serve --open        # live preview in the browser
+cadspec new casa && cd casa
+cadspec serve --open        # live preview in the browser
 ```
 
 Now edit any `.cf` file — by hand or by asking an AI agent — and the browser
 updates on every save. Parse errors and constraint violations appear as an
-overlay instead of a crash. When the design is right, `cadforge build` emits
+overlay instead of a crash. When the design is right, `cadspec build` emits
 a deterministic, AutoCAD-compatible DXF.
 
 Agents get first-class support:
 
-- `cadforge schema` — full `.cf` language reference in one command; agents
+- `cadspec schema` — full `.cf` language reference in one command; agents
   self-discover the format without prior training.
-- `cadforge check --json` / `cadforge layers --json` — machine-readable
+- `cadspec check --json` / `cadspec layers --json` — machine-readable
   validation reports.
-- `cadforge preview` — a faithful PNG render (real text, measured dimension
+- `cadspec preview` — a faithful PNG render (real text, measured dimension
   labels, hatches, line styles) + `preview.meta.json` with per-entity bounding
   boxes in world and pixel coordinates, so multimodal agents can *look* at the
   plan and locate every entity in the image.
-- `cadforge preview --highlight ln-001,tx-002` — labeled amber markers around
+- `cadspec preview --highlight ln-001,tx-002` — labeled amber markers around
   specific entities, so an agent can visually confirm its edit landed where
   intended.
-- `cadforge preview --format svg` — same render as vector SVG.
+- `cadspec preview --format svg` — same render as vector SVG.
 
 ---
 
@@ -68,7 +68,7 @@ curl -fsSL https://raw.githubusercontent.com/UniverLab/cadforge/main/scripts/ins
 irm https://raw.githubusercontent.com/UniverLab/cadforge/main/scripts/install.ps1 | iex
 ```
 
-Or via cargo: `cargo install cadforge` — see [`docs/installation.md`](docs/installation.md) for all methods.
+Or via cargo: `cargo install cadspec` — see [`docs/installation.md`](docs/installation.md) for all methods.
 
 ## Documentation
 
@@ -86,20 +86,20 @@ complete CLI reference.
 - **📐 Declarative Geometry** — Define architectural elements (lines, rects, circles, arcs, polylines, text, dimensions) in TOML `.cf` files. Deterministic, reproducible, version-controlled.
 - **🛠️ Construction Tools** — `[[array]]` (linear and polar: spiral staircases, gear teeth, repeated columns) and `[[mirror]]` expand into concrete primitives at build time; copies get derived ids (`base@1`, `base@m`).
 - **📏 Styled Dimensions** — Auto-measured labels with configurable `text_size`, `precision`, `show_units`, and `offset` per dimension.
-- **🔴 Live Preview** — `cadforge serve` runs a local server with pan/zoom, auto-reload on save (SSE), click-to-inspect any entity (copy its source TOML as an agent prompt), per-layer ghost/hide states, a 3D stacked-layers view, and a build-error overlay. Zero config.
+- **🔴 Live Preview** — `cadspec serve` runs a local server with pan/zoom, auto-reload on save (SSE), click-to-inspect any entity (copy its source TOML as an agent prompt), per-layer ghost/hide states, a 3D stacked-layers view, and a build-error overlay. Zero config.
 - **🔗 Layer System** — Organize geometry by layer with custom names, colors, and line weights. Compile single layers or full projects.
 - **📄 DXF Export** — Compile `.cf` → DXF (AutoCAD-compatible). Full layer support, LWPOLYLINE for polylines, HATCH for solid fills, MTEXT for annotations.
 - **🖼️ Previews for Agents** — Raster PNG + metadata JSON (entity bounding boxes) and full-fidelity SVG with real text, auto-measured dimensions, line styles, and clipped hatch patterns.
-- **✅ Validation Engine** — `cadforge check` validates geometry and constraints without generating output; `--json` for tooling.
+- **✅ Validation Engine** — `cadspec check` validates geometry and constraints without generating output; `--json` for tooling.
 
 ### 🏗️ Project Management
 
-- **Project Scaffolding** — `cadforge new` creates a multi-layer starter project (shapes, curves, annotations) that showcases the core `.cf` primitives.
+- **Project Scaffolding** — `cadspec new` creates a multi-layer starter project (shapes, curves, annotations) that showcases the core `.cf` primitives.
 - **Multi-Layer Compilation** — Compile all layers or target specific layers with `--layer`. Custom output path with `--output`.
-- **Auto-Rebuild** — `cadforge watch` monitors `.cf` and `.toml` files and auto-rebuilds DXF on changes with 300ms debounce.
-- **Code Formatting** — `cadforge fmt` normalizes `.cf` files. `--check` mode for CI validation.
+- **Auto-Rebuild** — `cadspec watch` monitors `.cf` and `.toml` files and auto-rebuilds DXF on changes with 300ms debounce.
+- **Code Formatting** — `cadspec fmt` normalizes `.cf` files. `--check` mode for CI validation.
 - **Constraints** — `parent`, `belongs_to`, and `spatial_dependency` rules between layers; warnings by default, build-blocking with `strict = true`.
-- **DXF Import** — `cadforge import plano.dxf` migrates existing drawings into `.cf` layers + `project.toml`.
+- **DXF Import** — `cadspec import plano.dxf` migrates existing drawings into `.cf` layers + `project.toml`.
 
 ### 🔧 Architecture
 
@@ -114,35 +114,35 @@ complete CLI reference.
 
 | Command | Description |
 |---------|-------------|
-| `cadforge new <name>` | Create a new project with multi-layer scaffold |
-| `cadforge init` | Initialize CADforge in current directory |
-| `cadforge build` | Compile project to DXF |
-| `cadforge build --check` | Validate project and constraints without generating DXF |
-| `cadforge build --output <path>` | Compile to custom output path |
-| `cadforge build --layer <name>` | Compile specific layer only |
-| `cadforge serve` | Live preview server — browser auto-reloads on save |
-| `cadforge serve --open --port 4377` | Open browser automatically on a custom port |
-| `cadforge check` | Validate with project metadata and layer colors |
-| `cadforge check --json` | Machine-readable validation report |
-| `cadforge layers` | List layers with entity counts and colors |
-| `cadforge layers --json` | Machine-readable layer listing |
-| `cadforge schema` | Print the full `.cf` language reference (markdown) |
-| `cadforge preview` | Faithful PNG render + metadata JSON |
-| `cadforge preview --format svg` | Vector SVG preview (same renderer) |
-| `cadforge preview --highlight <id1,id2>` | Amber markers around specific entities |
-| `cadforge preview --width 1024 -H 768` | Custom resolution preview |
-| `cadforge preview --layer <name>` | Preview specific layer only |
-| `cadforge fmt` | Format .cf files (normalize whitespace) |
-| `cadforge fmt --check` | Check formatting without modifying (CI) |
-| `cadforge watch` | Auto-rebuild on file changes |
-| `cadforge import <file.dxf>` | Import DXF into `.cf` layers + `project.toml` |
-| `cadforge import <file.dxf> --layer <name>` | Import only one DXF layer |
-| `cadforge view` | Open the project in the configured viewer |
-| `cadforge view --layer <name>` | Open only one layer in the viewer |
-| `cadforge config set <key> <value>` | Set global defaults (`author`, `units`) |
-| `cadforge config show` | Show global defaults |
+| `cadspec new <name>` | Create a new project with multi-layer scaffold |
+| `cadspec init` | Initialize CADspec in current directory |
+| `cadspec build` | Compile project to DXF |
+| `cadspec build --check` | Validate project and constraints without generating DXF |
+| `cadspec build --output <path>` | Compile to custom output path |
+| `cadspec build --layer <name>` | Compile specific layer only |
+| `cadspec serve` | Live preview server — browser auto-reloads on save |
+| `cadspec serve --open --port 4377` | Open browser automatically on a custom port |
+| `cadspec check` | Validate with project metadata and layer colors |
+| `cadspec check --json` | Machine-readable validation report |
+| `cadspec layers` | List layers with entity counts and colors |
+| `cadspec layers --json` | Machine-readable layer listing |
+| `cadspec schema` | Print the full `.cf` language reference (markdown) |
+| `cadspec preview` | Faithful PNG render + metadata JSON |
+| `cadspec preview --format svg` | Vector SVG preview (same renderer) |
+| `cadspec preview --highlight <id1,id2>` | Amber markers around specific entities |
+| `cadspec preview --width 1024 -H 768` | Custom resolution preview |
+| `cadspec preview --layer <name>` | Preview specific layer only |
+| `cadspec fmt` | Format .cf files (normalize whitespace) |
+| `cadspec fmt --check` | Check formatting without modifying (CI) |
+| `cadspec watch` | Auto-rebuild on file changes |
+| `cadspec import <file.dxf>` | Import DXF into `.cf` layers + `project.toml` |
+| `cadspec import <file.dxf> --layer <name>` | Import only one DXF layer |
+| `cadspec view` | Open the project in the configured viewer |
+| `cadspec view --layer <name>` | Open only one layer in the viewer |
+| `cadspec config set <key> <value>` | Set global defaults (`author`, `units`) |
+| `cadspec config show` | Show global defaults |
 
-### Live preview controls (`cadforge serve`)
+### Live preview controls (`cadspec serve`)
 
 - Scroll → zoom (centered on cursor) · drag → pan · double-click / `F` → fit
 - **Click an entity** → inspector with its source TOML block; `copy for agent` produces a ready-made targeted-edit prompt
@@ -206,7 +206,7 @@ offset = 0.5
 
 `line`, `polyline`, `rect`, `circle`, `arc`, `text`, `point`, `dim`, `hatch`, `fill`, `group`
 
-Run `cadforge schema` for the complete reference with all attributes.
+Run `cadspec schema` for the complete reference with all attributes.
 
 ---
 
@@ -261,7 +261,7 @@ Run `cadforge schema` for the complete reference with all attributes.
 | Build output | `./output.dxf` | DXF |
 | Preview output | `./preview.png`, `./preview.svg` | PNG / SVG |
 | Preview metadata | `./preview.meta.json` | JSON |
-| Language reference | `cadforge schema` (stdout) | Markdown |
+| Language reference | `cadspec schema` (stdout) | Markdown |
 
 ---
 
@@ -269,40 +269,40 @@ Run `cadforge schema` for the complete reference with all attributes.
 
 **Create a new project:**
 ```bash
-cadforge new mi-proyecto
+cadspec new mi-proyecto
 cd mi-proyecto
 ```
 
 **Live preview while you edit:**
 ```bash
-cadforge serve --open    # browser refreshes on every save
+cadspec serve --open    # browser refreshes on every save
 ```
 
-**Edit `.cf` files** (TOML format with your geometry — run `cadforge schema` for the reference)
+**Edit `.cf` files** (TOML format with your geometry — run `cadspec schema` for the reference)
 
 **Format and validate:**
 ```bash
-cadforge fmt           # normalize .cf files
-cadforge check         # validate without generating DXF
+cadspec fmt           # normalize .cf files
+cadspec check         # validate without generating DXF
 ```
 
 **Compile to DXF:**
 ```bash
-cadforge build                        # default output.dxf
-cadforge build --output plano.dxf     # custom output path
-cadforge build --layer muros          # compile single layer
+cadspec build                        # default output.dxf
+cadspec build --output plano.dxf     # custom output path
+cadspec build --layer muros          # compile single layer
 ```
 
 **Preview:**
 ```bash
-cadforge preview                          # default 1600x1200 (fits content aspect)
-cadforge preview --width 1024 --height 768  # custom resolution
-cadforge preview --layer muros            # single layer preview
+cadspec preview                          # default 1600x1200 (fits content aspect)
+cadspec preview --width 1024 --height 768  # custom resolution
+cadspec preview --layer muros            # single layer preview
 ```
 
 **Auto-rebuild on changes:**
 ```bash
-cadforge watch       # monitors .cf and .toml files
+cadspec watch       # monitors .cf and .toml files
 ```
 
 ---

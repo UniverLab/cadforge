@@ -6,33 +6,33 @@ order: 7
 
 # Working with Agents
 
-Cadforge is designed for **humans and AI agents working together** on the
+Cadspec is designed for **humans and AI agents working together** on the
 same project. Everything an agent needs is exposed through the CLI.
 
-## Self-discovery — `cadforge schema`
+## Self-discovery — `cadspec schema`
 
 ```bash
-cadforge schema
+cadspec schema
 ```
 
 Prints the complete `.cf` language reference as markdown. An agent with
 shell access can learn the entire format in one command — no prior
-training on cadforge required.
+training on cadspec required.
 
 ## Machine-readable state
 
 ```bash
-cadforge check --json    # validation report
-cadforge layers --json   # layers, entity counts, colors
+cadspec check --json    # validation report
+cadspec layers --json   # layers, entity counts, colors
 ```
 
-## Visual grounding — `cadforge preview`
+## Visual grounding — `cadspec preview`
 
 ```bash
-cadforge preview                          # PNG + preview.meta.json
-cadforge preview --format svg             # same render as vector SVG
-cadforge preview --width 1024 -H 768      # custom resolution
-cadforge preview --layer muros            # single layer
+cadspec preview                          # PNG + preview.meta.json
+cadspec preview --format svg             # same render as vector SVG
+cadspec preview --width 1024 -H 768      # custom resolution
+cadspec preview --layer muros            # single layer
 ```
 
 The PNG is a faithful render — real text, measured dimension labels,
@@ -46,7 +46,7 @@ used), including fontless containers.
 ## Confirming edits — `--highlight`
 
 ```bash
-cadforge preview --highlight ln-001,tx-002
+cadspec preview --highlight ln-001,tx-002
 ```
 
 Draws labeled amber markers around the listed entities, so an agent can
@@ -61,10 +61,10 @@ source TOML and file — paste it into your agent and ask for the change.
 ## A typical agent loop
 
 ```bash
-cadforge schema                      # 1. learn the language
-cadforge layers --json               # 2. inspect the project
+cadspec schema                      # 1. learn the language
+cadspec layers --json               # 2. inspect the project
 # ... edit .cf files ...
-cadforge check --json                # 3. validate
-cadforge preview --highlight <ids>   # 4. visually confirm
-cadforge build                       # 5. emit the DXF
+cadspec check --json                # 3. validate
+cadspec preview --highlight <ids>   # 4. visually confirm
+cadspec build                       # 5. emit the DXF
 ```

@@ -2,7 +2,7 @@
 //!
 //! Renders real text, dimension lines with measured values, hatch patterns
 //! clipped to their boundary, line styles, and optional highlight markers.
-//! It is the single rendering backend: `cadforge serve` displays the SVG
+//! It is the single rendering backend: `cadspec serve` displays the SVG
 //! directly and the PNG preview rasterizes it.
 
 use crate::compiler::resolve_boundary;

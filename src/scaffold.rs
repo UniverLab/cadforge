@@ -1,10 +1,10 @@
-//! Scaffold — generates a new CADforge project structure.
+//! Scaffold — generates a new CADspec project structure.
 
 use anyhow::{bail, Result};
 use std::fs;
 use std::path::Path;
 
-/// Create a new CADforge project in the given directory.
+/// Create a new CADspec project in the given directory.
 pub fn create_project(name: &str, parent: &Path) -> Result<()> {
     let project_dir = parent.join(name);
     if project_dir.exists() {
@@ -21,15 +21,15 @@ pub fn create_project(name: &str, parent: &Path) -> Result<()> {
     println!("  → annotations.cf");
     println!("  → .gitignore");
     println!(
-        "\n  Run `cadforge serve --path {}` for a live preview,",
+        "\n  Run `cadspec serve --path {}` for a live preview,",
         name
     );
-    println!("  or `cadforge build --path {}` to compile to DXF.", name);
-    println!("  `cadforge schema` prints the .cf language reference.");
+    println!("  or `cadspec build --path {}` to compile to DXF.", name);
+    println!("  `cadspec schema` prints the .cf language reference.");
     Ok(())
 }
 
-/// Initialize a CADforge project in the current directory.
+/// Initialize a CADspec project in the current directory.
 pub fn init_project(dir: &Path) -> Result<()> {
     if dir.join("project.toml").exists() {
         bail!("project.toml already exists in '{}'", dir.display());
@@ -41,14 +41,14 @@ pub fn init_project(dir: &Path) -> Result<()> {
         .unwrap_or("project");
     write_project_files(dir, name)?;
 
-    println!("✓ Initialized CADforge project in {}", dir.display());
+    println!("✓ Initialized CADspec project in {}", dir.display());
     println!("  → project.toml");
     println!("  → shapes.cf");
     println!("  → curves.cf");
     println!("  → annotations.cf");
     println!("  → .gitignore");
-    println!("\n  Run `cadforge serve` for a live preview.");
-    println!("  `cadforge schema` prints the .cf language reference.");
+    println!("\n  Run `cadspec serve` for a live preview.");
+    println!("  `cadspec schema` prints the .cf language reference.");
     Ok(())
 }
 
@@ -67,7 +67,7 @@ annotations = {{ file = "annotations.cf", locked = false }}
     );
     fs::write(project_dir.join("project.toml"), project_toml)?;
 
-    let gitignore = "# CADforge output\noutput.dxf\npreview.png\npreview.svg\npreview.meta.json\n\n# CADforge serve daemon (pid + logs)\n.cadforge/\n\n# Rust build artifacts\ntarget/\n";
+    let gitignore = "# CADspec output\noutput.dxf\npreview.png\npreview.svg\npreview.meta.json\n\n# CADspec serve daemon (pid + logs)\n.cadspec/\n\n# Rust build artifacts\ntarget/\n";
     fs::write(project_dir.join(".gitignore"), gitignore)?;
 
     let shapes_cf = r##"[layer]
@@ -180,7 +180,7 @@ mod tests {
 
     #[test]
     fn creates_project_structure() {
-        let tmp = PathBuf::from("/tmp/cadforge_test_new");
+        let tmp = PathBuf::from("/tmp/cadspec_test_new");
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(&tmp).unwrap();
 
@@ -208,7 +208,7 @@ mod tests {
 
     #[test]
     fn fails_if_dir_exists() {
-        let tmp = PathBuf::from("/tmp/cadforge_test_exists");
+        let tmp = PathBuf::from("/tmp/cadspec_test_exists");
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(tmp.join("existing")).unwrap();
 
@@ -220,7 +220,7 @@ mod tests {
 
     #[test]
     fn init_in_existing_dir() {
-        let tmp = PathBuf::from("/tmp/cadforge_test_init");
+        let tmp = PathBuf::from("/tmp/cadspec_test_init");
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(&tmp).unwrap();
 
@@ -237,7 +237,7 @@ mod tests {
 
     #[test]
     fn init_fails_if_project_exists() {
-        let tmp = PathBuf::from("/tmp/cadforge_test_init_exists");
+        let tmp = PathBuf::from("/tmp/cadspec_test_init_exists");
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(&tmp).unwrap();
         fs::write(tmp.join("project.toml"), "").unwrap();

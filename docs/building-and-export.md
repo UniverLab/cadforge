@@ -9,10 +9,10 @@ order: 6
 ## Compile to DXF
 
 ```bash
-cadforge build                       # default output.dxf
-cadforge build --output plano.dxf    # custom output path
-cadforge build --layer muros         # compile a single layer
-cadforge build --check               # validate only, no DXF
+cadspec build                       # default output.dxf
+cadspec build --output plano.dxf    # custom output path
+cadspec build --layer muros         # compile a single layer
+cadspec build --check               # validate only, no DXF
 ```
 
 The output is deterministic: identical input produces a bit-identical
@@ -23,16 +23,16 @@ layer/color/lineweight mapping.
 ## Validation
 
 ```bash
-cadforge check          # geometry + constraints, human-readable
-cadforge check --json   # machine-readable report
-cadforge layers         # list layers with entity counts and colors
-cadforge layers --json  # machine-readable layer listing
+cadspec check          # geometry + constraints, human-readable
+cadspec check --json   # machine-readable report
+cadspec layers         # list layers with entity counts and colors
+cadspec layers --json  # machine-readable layer listing
 ```
 
 ## Watch mode
 
 ```bash
-cadforge watch
+cadspec watch
 ```
 
 Monitors `.cf` and `.toml` files and rebuilds the DXF on changes with a
@@ -41,15 +41,15 @@ Monitors `.cf` and `.toml` files and rebuilds the DXF on changes with a
 ## Formatting
 
 ```bash
-cadforge fmt           # normalize .cf files in place
-cadforge fmt --check   # CI-friendly check mode
+cadspec fmt           # normalize .cf files in place
+cadspec fmt --check   # CI-friendly check mode
 ```
 
 ## Importing existing drawings
 
 ```bash
-cadforge import plano.dxf                 # all layers
-cadforge import plano.dxf --layer muros   # a single DXF layer
+cadspec import plano.dxf                 # all layers
+cadspec import plano.dxf --layer muros   # a single DXF layer
 ```
 
 Import migrates an existing DXF into `.cf` layer files plus a

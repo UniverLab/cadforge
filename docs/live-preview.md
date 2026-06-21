@@ -1,17 +1,17 @@
 ---
 title: Live Preview
-description: The cadforge serve loop — pan/zoom, inspector, layer states, 3D view, error overlay.
+description: The cadspec serve loop — pan/zoom, inspector, layer states, 3D view, error overlay.
 order: 5
 ---
 
 # Live Preview
 
 ```bash
-cadforge serve                       # start the local preview server
-cadforge serve --open --port 4377    # open browser, custom port
+cadspec serve                       # start the local preview server
+cadspec serve --open --port 4377    # open browser, custom port
 ```
 
-`cadforge serve` runs a zero-config local server with auto-reload on
+`cadspec serve` runs a zero-config local server with auto-reload on
 save (SSE). Edit a `.cf` file and the browser updates instantly.
 
 ## Controls

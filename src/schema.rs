@@ -1,13 +1,13 @@
-//! Schema — the `.cf` language reference, printable via `cadforge schema`.
+//! Schema — the `.cf` language reference, printable via `cadspec schema`.
 //!
 //! This is the self-discovery entry point for AI agents and humans alike: one
 //! command dumps the complete format so any agent can generate valid `.cf`
 //! files without prior training.
 
 /// Complete `.cf` + `project.toml` reference in markdown.
-pub const CF_REFERENCE: &str = r##"# CADforge `.cf` Language Reference
+pub const CF_REFERENCE: &str = r##"# CADspec `.cf` Language Reference
 
-CADforge projects are plain TOML. A project is a directory with a `project.toml`
+CADspec projects are plain TOML. A project is a directory with a `project.toml`
 plus one `.cf` file per layer. Geometry is declared, never drawn: the same files
 always compile to the same DXF.
 
@@ -30,7 +30,7 @@ cotas.belongs_to = "muros"      # child primitives reference parent ids via belo
 "muros → puertas" = "spatial_dependency"  # movement warning (informational)
 
 # Planos (drawing sheets): named views of the model with a title block.
-# Render with `cadforge preview --plano <name>`, or pick them in the viewer's
+# Render with `cadspec preview --plano <name>`, or pick them in the viewer's
 # Planos panel (under Layers).
 [[plano]]
 name = "P-01"
@@ -77,7 +77,7 @@ elevation = 0.0        # 3D view: base height (Z) the shape sits at (default 0)
 ```
 
 The 2D plan is unaffected by `extrude`/`elevation`; they only shape the
-extruded 3D view (`cadforge preview --3d`, or the viewer's `3D` button).
+extruded 3D view (`cadspec preview --3d`, or the viewer's `3D` button).
 
 ### Primitives
 
@@ -206,24 +206,24 @@ A cube with a hole = a `box` minus a `cylinder` via `op = "difference"`.
 ## Workflow
 
 ```bash
-cadforge serve            # live preview in the browser (auto-reloads on save)
-cadforge build            # compile to output.dxf
-cadforge check --json     # machine-readable validation report
-cadforge layers --json    # machine-readable layer listing
-cadforge preview          # PNG + metadata JSON (--format svg for vector)
-cadforge preview --highlight ln-001,tx-002   # amber markers around those ids
-cadforge fmt              # normalize .cf formatting
+cadspec serve            # live preview in the browser (auto-reloads on save)
+cadspec build            # compile to output.dxf
+cadspec check --json     # machine-readable validation report
+cadspec layers --json    # machine-readable layer listing
+cadspec preview          # PNG + metadata JSON (--format svg for vector)
+cadspec preview --highlight ln-001,tx-002   # amber markers around those ids
+cadspec fmt              # normalize .cf formatting
 ```
 
-The feedback loop for agents: edit `.cf` → run `cadforge check --json` to
-validate → run `cadforge preview` and **look at `preview.png`** — it is a
+The feedback loop for agents: edit `.cf` → run `cadspec check --json` to
+validate → run `cadspec preview` and **look at `preview.png`** — it is a
 faithful render (real text, measured dimension labels, hatches, line styles).
 `preview.meta.json` maps every entity id to world and pixel bounding boxes.
 After editing specific entities, re-render with
-`cadforge preview --highlight <ids>` to visually confirm the change landed
+`cadspec preview --highlight <ids>` to visually confirm the change landed
 where intended (highlighted entities get labeled amber markers).
 
-For humans, `cadforge serve` adds: click any entity to inspect its source
+For humans, `cadspec serve` adds: click any entity to inspect its source
 TOML block (copyable as an agent prompt for targeted edits), a layer panel
 with on/ghost/off states (trace one floor over another), and a `3D` button
 that renders the extruded view (see `extrude`/`elevation` above).

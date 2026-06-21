@@ -1,12 +1,12 @@
 ---
 title: Installation
-description: Install cadforge with the quick installer, cargo, or from source.
+description: Install cadspec with the quick installer, cargo, or from source.
 order: 2
 ---
 
 # Installation
 
-> Cadforge is currently in **beta** (`0.1.0-beta.x`). Interfaces may still
+> Cadspec is currently in **beta** (`0.1.0-beta.x`). Interfaces may still
 > change before 1.0.
 
 ## Quick install
@@ -26,24 +26,24 @@ irm https://raw.githubusercontent.com/UniverLab/cadforge/main/scripts/install.ps
 ## Via cargo
 
 ```bash
-cargo install cadforge
+cargo install cadspec
 ```
 
-Available on [crates.io](https://crates.io/crates/cadforge).
+Available on [crates.io](https://crates.io/crates/cadspec).
 
 ## From source
 
 ```bash
 git clone https://github.com/UniverLab/cadforge.git
-cd cadforge
+cd cadspec
 cargo build --release
-# Binary at target/release/cadforge
+# Binary at target/release/cadspec
 ```
 
 ## Uninstall
 
 ```bash
-rm -f ~/.local/bin/cadforge
+rm -f ~/.local/bin/cadspec
 ```
 
 Projects are plain directories of TOML files — nothing else to clean up.

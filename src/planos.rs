@@ -232,7 +232,7 @@ fn title_block(
     );
     let _ = write!(
         s,
-        r#"<text x="{tx:.1}" y="{ty:.1}" font-family="monospace" font-size="{fs:.1}" fill="{MUTED}" text-anchor="end">cadforge</text>"#,
+        r#"<text x="{tx:.1}" y="{ty:.1}" font-family="monospace" font-size="{fs:.1}" fill="{MUTED}" text-anchor="end">cadspec</text>"#,
         tx = x + w - pad,
         ty = y + h - row * 0.35,
     );

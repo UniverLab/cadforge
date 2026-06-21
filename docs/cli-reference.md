@@ -1,61 +1,61 @@
 ---
 title: CLI Reference
-description: Every cadforge command and flag.
+description: Every cadspec command and flag.
 order: 8
 ---
 
 # CLI Reference
 
 ```
-cadforge <command> [options]
+cadspec <command> [options]
 ```
 
 ## Project lifecycle
 
 | Command | Description |
 |---------|-------------|
-| `cadforge new <name>` | Create a new project with multi-layer scaffold |
-| `cadforge init` | Initialize cadforge in the current directory |
-| `cadforge build` | Compile project to DXF |
-| `cadforge build --check` | Validate project and constraints without generating DXF |
-| `cadforge build --output <path>` | Compile to custom output path |
-| `cadforge build --layer <name>` | Compile a specific layer only |
-| `cadforge watch` | Auto-rebuild on file changes (300 ms debounce) |
+| `cadspec new <name>` | Create a new project with multi-layer scaffold |
+| `cadspec init` | Initialize cadspec in the current directory |
+| `cadspec build` | Compile project to DXF |
+| `cadspec build --check` | Validate project and constraints without generating DXF |
+| `cadspec build --output <path>` | Compile to custom output path |
+| `cadspec build --layer <name>` | Compile a specific layer only |
+| `cadspec watch` | Auto-rebuild on file changes (300 ms debounce) |
 
 ## Preview
 
 | Command | Description |
 |---------|-------------|
-| `cadforge serve` | Live preview server — browser auto-reloads on save |
-| `cadforge serve --open --port <p>` | Open browser automatically on a custom port |
-| `cadforge preview` | Faithful PNG render + `preview.meta.json` |
-| `cadforge preview --format svg` | Vector SVG preview (same renderer) |
-| `cadforge preview --highlight <ids>` | Amber markers around specific entities |
-| `cadforge preview --width <w> -H <h>` | Custom resolution |
-| `cadforge preview --layer <name>` | Preview a specific layer only |
-| `cadforge view` | Open the project in the configured viewer |
-| `cadforge view --layer <name>` | Open only one layer in the viewer |
+| `cadspec serve` | Live preview server — browser auto-reloads on save |
+| `cadspec serve --open --port <p>` | Open browser automatically on a custom port |
+| `cadspec preview` | Faithful PNG render + `preview.meta.json` |
+| `cadspec preview --format svg` | Vector SVG preview (same renderer) |
+| `cadspec preview --highlight <ids>` | Amber markers around specific entities |
+| `cadspec preview --width <w> -H <h>` | Custom resolution |
+| `cadspec preview --layer <name>` | Preview a specific layer only |
+| `cadspec view` | Open the project in the configured viewer |
+| `cadspec view --layer <name>` | Open only one layer in the viewer |
 
 ## Inspection & quality
 
 | Command | Description |
 |---------|-------------|
-| `cadforge check` | Validate with project metadata and layer colors |
-| `cadforge check --json` | Machine-readable validation report |
-| `cadforge layers` | List layers with entity counts and colors |
-| `cadforge layers --json` | Machine-readable layer listing |
-| `cadforge schema` | Print the full `.cf` language reference (markdown) |
-| `cadforge fmt` | Format `.cf` files (normalize whitespace) |
-| `cadforge fmt --check` | Check formatting without modifying (CI) |
+| `cadspec check` | Validate with project metadata and layer colors |
+| `cadspec check --json` | Machine-readable validation report |
+| `cadspec layers` | List layers with entity counts and colors |
+| `cadspec layers --json` | Machine-readable layer listing |
+| `cadspec schema` | Print the full `.cf` language reference (markdown) |
+| `cadspec fmt` | Format `.cf` files (normalize whitespace) |
+| `cadspec fmt --check` | Check formatting without modifying (CI) |
 
 ## Import & config
 
 | Command | Description |
 |---------|-------------|
-| `cadforge import <file.dxf>` | Import DXF into `.cf` layers + `project.toml` |
-| `cadforge import <file.dxf> --layer <name>` | Import only one DXF layer |
-| `cadforge config set <key> <value>` | Set global defaults (`author`, `units`) |
-| `cadforge config show` | Show global defaults |
+| `cadspec import <file.dxf>` | Import DXF into `.cf` layers + `project.toml` |
+| `cadspec import <file.dxf> --layer <name>` | Import only one DXF layer |
+| `cadspec config set <key> <value>` | Set global defaults (`author`, `units`) |
+| `cadspec config show` | Show global defaults |
 
 ## Output files
 

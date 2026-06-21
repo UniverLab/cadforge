@@ -6,11 +6,11 @@ order: 4
 
 # The .cf Format
 
-A cadforge project is a `project.toml` plus one `.cf` file per layer.
+A cadspec project is a `project.toml` plus one `.cf` file per layer.
 `.cf` files are TOML: a `[layer]` header followed by arrays of entity
 tables.
 
-> The authoritative reference is always `cadforge schema` — it prints the
+> The authoritative reference is always `cadspec schema` — it prints the
 > complete language specification (markdown) for the exact version you
 > have installed.
 

@@ -2,7 +2,7 @@
 //!
 //! The PNG is a faithful raster of the SVG renderer (real text, measured
 //! dimensions, hatches, line styles), so what an agent *sees* in the image is
-//! exactly what `cadforge serve` shows a human. The metadata JSON maps every
+//! exactly what `cadspec serve` shows a human. The metadata JSON maps every
 //! entity to world and pixel bounding boxes so agents can locate geometry in
 //! the image.
 

@@ -755,6 +755,7 @@ const INDEX_HTML: &str = r##"<!DOCTYPE html>
     --accent: #6ec6e6; --accent-soft: rgba(110,198,230,0.16);
     --ok: #5dd39e; --err: #e0746e; --err-soft: #2a1212; --err-ink: #ff9f9a;
     --code-bg: #0a0b0d; --code-ink: #cdd6df;
+    --t-num: #d9a35f; --t-hdr: #c79be0;
   }
   :root[data-theme="light"], :root[data-theme="light"] :root {
     --bg: #f6f8fa; --panel: #ffffff; --panel-2: #eef2f5;
@@ -764,6 +765,7 @@ const INDEX_HTML: &str = r##"<!DOCTYPE html>
     --accent: #156c80; --accent-soft: rgba(21,108,128,0.12);
     --ok: #1f8f5a; --err: #b23b34; --err-soft: #fbeae9; --err-ink: #9a3027;
     --code-bg: #f0f3f5; --code-ink: #1b2630;
+    --t-num: #9a6516; --t-hdr: #7a3fa0;
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme]) {
@@ -774,6 +776,7 @@ const INDEX_HTML: &str = r##"<!DOCTYPE html>
       --accent: #156c80; --accent-soft: rgba(21,108,128,0.12);
       --ok: #1f8f5a; --err: #b23b34; --err-soft: #fbeae9; --err-ink: #9a3027;
       --code-bg: #f0f3f5; --code-ink: #1b2630;
+      --t-num: #9a6516; --t-hdr: #7a3fa0;
     }
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -793,7 +796,19 @@ const INDEX_HTML: &str = r##"<!DOCTYPE html>
   #editor.hidden { display: none; }
   .ed-head { display: flex; gap: 6px; padding: 7px 8px; border-bottom: 1px solid var(--line); }
   #ed-file { flex: 1; min-width: 0; background: var(--panel-2); color: var(--ink); border: 1px solid var(--line-2); border-radius: 4px; font: inherit; font-size: 11px; padding: 3px 6px; }
-  #ed-text { flex: 1; resize: none; background: var(--code-bg); color: var(--code-ink); border: 0; padding: 10px 12px; font: inherit; font-size: 12px; line-height: 1.55; tab-size: 2; outline: none; white-space: pre; overflow: auto; }
+  /* highlighted-overlay editor: a coloured <pre> behind a transparent textarea */
+  #ed-wrap { flex: 1; position: relative; overflow: hidden; background: var(--code-bg); }
+  #ed-hl, #ed-text { position: absolute; inset: 0; margin: 0; border: 0; padding: 10px 12px; font: inherit; font-size: 12px; line-height: 1.55; tab-size: 2; white-space: pre; overflow: auto; }
+  #ed-hl { color: var(--code-ink); pointer-events: none; z-index: 0; }
+  #ed-hl code { font: inherit; }
+  #ed-text { resize: none; background: transparent; color: transparent; caret-color: var(--ink-strong); outline: none; z-index: 1; }
+  #ed-text::selection { background: var(--accent-soft); }
+  .t-key { color: var(--accent); }
+  .t-str { color: var(--ok); }
+  .t-num { color: var(--t-num); }
+  .t-hdr { color: var(--t-hdr); font-weight: 500; }
+  .t-com { color: var(--ink-faint); font-style: italic; }
+  .t-bool { color: var(--err); }
   #ed-status { padding: 5px 10px; font-size: 10px; color: var(--ink-faint); border-top: 1px solid var(--line); white-space: nowrap; overflow: hidden; }
   #ed-status.ok { color: var(--ok); }
   #ed-status.err { color: var(--err); }
@@ -865,7 +880,10 @@ const INDEX_HTML: &str = r##"<!DOCTYPE html>
       <select id="ed-file" title="project .cf files"></select>
       <button id="ed-save" title="save (Ctrl+S)">save</button>
     </div>
-    <textarea id="ed-text" spellcheck="false" placeholder="select a .cf file…"></textarea>
+    <div id="ed-wrap">
+      <pre id="ed-hl" aria-hidden="true"><code></code></pre>
+      <textarea id="ed-text" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="select a .cf file…"></textarea>
+    </div>
     <div id="ed-status">ready</div>
   </aside>
   <div id="editor-resizer" title="drag to resize the editor"></div>
@@ -1229,23 +1247,64 @@ refresh();
     apply(mode());
   })();
 
-  // ── Built-in .cf editor ────────────────────────────────────────────────────
+  // ── Built-in .cf editor: syntax highlight + debounced auto-save ─────────────
   (function () {
     var editor = document.getElementById('editor');
     var resizer = document.getElementById('editor-resizer');
     var sel = document.getElementById('ed-file');
     var text = document.getElementById('ed-text');
+    var hl = document.querySelector('#ed-hl code');
     var saveBtn = document.getElementById('ed-save');
     var status = document.getElementById('ed-status');
     var toggle = document.getElementById('btneditor');
-    var dirty = false;
+    var current = null; // the file currently loaded in the textarea
+    var timer = null;
+    var SAVE_DELAY = 600;
 
     function setStatus(msg, cls) { status.textContent = msg; status.className = cls || ''; }
+    function escHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
+    // Lightweight .cf (TOML-ish) tokenizer → coloured spans.
+    function highlight(code) {
+      return code.split('\n').map(function (line) {
+        var out = '', rest = escHtml(line);
+        var km = rest.match(/^(\s*)([A-Za-z0-9_.\-]+)(\s*=)/);
+        if (km) { out += km[1] + '<span class="t-key">' + km[2] + '</span>' + km[3]; rest = rest.slice(km[0].length); }
+        out += rest.replace(/(#.*$)|("(?:[^"\\]|\\.)*")|(\[\[?[^\]]*\]\]?)|(-?\b\d+\.?\d*\b)|(\btrue\b|\bfalse\b)/g,
+          function (m, c, s, h, n, b) {
+            if (c) return '<span class="t-com">' + c + '</span>';
+            if (s) return '<span class="t-str">' + s + '</span>';
+            if (h) return '<span class="t-hdr">' + h + '</span>';
+            if (n) return '<span class="t-num">' + n + '</span>';
+            if (b) return '<span class="t-bool">' + b + '</span>';
+            return m;
+          });
+        return out;
+      }).join('\n');
+    }
+    function paint() { hl.innerHTML = highlight(text.value) + '\n'; }
+    function syncScroll() { var p = hl.parentNode; p.scrollTop = text.scrollTop; p.scrollLeft = text.scrollLeft; }
+
+    function save() {
+      var name = current; // captured: stays correct even if the file switches
+      if (!name) return;
+      clearTimeout(timer); timer = null;
+      setStatus('saving…');
+      fetch('/save?name=' + encodeURIComponent(name), { method: 'POST', body: text.value })
+        .then(function (r) { return r.json(); })
+        .then(function (j) { setStatus(j.ok ? 'saved · ' + name : 'saved · build error (see viewer)', j.ok ? 'ok' : 'err'); })
+        .catch(function () { setStatus('save failed', 'err'); });
+    }
+    function scheduleSave() {
+      clearTimeout(timer);
+      setStatus('● ' + current, 'dirty');
+      timer = setTimeout(save, SAVE_DELAY);
+    }
     function loadFile(name) {
+      clearTimeout(timer); timer = null;
       fetch('/file?name=' + encodeURIComponent(name))
         .then(function (r) { return r.text(); })
-        .then(function (t) { text.value = t; dirty = false; setStatus(name); })
+        .then(function (t) { current = name; text.value = t; paint(); syncScroll(); setStatus(name); })
         .catch(function () { setStatus('cannot load ' + name, 'err'); });
     }
     function loadFiles() {
@@ -1256,28 +1315,16 @@ refresh();
           o.value = f; o.textContent = f; sel.appendChild(o);
         });
         if (sel.options.length) { loadFile(sel.value); }
-        else { text.value = ''; setStatus('no .cf files'); }
+        else { current = null; text.value = ''; paint(); setStatus('no .cf files'); }
       }).catch(function () { setStatus('cannot list files', 'err'); });
-    }
-    function save() {
-      var name = sel.value;
-      if (!name) return;
-      setStatus('saving…');
-      fetch('/save?name=' + encodeURIComponent(name), { method: 'POST', body: text.value })
-        .then(function (r) { return r.json(); })
-        .then(function (j) {
-          if (j.ok) { dirty = false; setStatus('saved · ' + name, 'ok'); }
-          else { dirty = false; setStatus('saved · build error (see viewer)', 'err'); }
-        })
-        .catch(function () { setStatus('save failed', 'err'); });
     }
 
     sel.addEventListener('change', function () {
-      if (!dirty || confirm('Discard unsaved changes?')) loadFile(sel.value);
+      if (timer) save();          // flush the pending edit to the old file first
+      loadFile(sel.value);
     });
-    text.addEventListener('input', function () {
-      if (!dirty) { dirty = true; setStatus('● ' + sel.value + ' (unsaved)', 'dirty'); }
-    });
+    text.addEventListener('input', function () { paint(); scheduleSave(); });
+    text.addEventListener('scroll', syncScroll);
     saveBtn.addEventListener('click', save);
     // Keep editor keystrokes out of the viewer's shortcuts (3 / f / 1-9 / esc).
     text.addEventListener('keydown', function (e) {

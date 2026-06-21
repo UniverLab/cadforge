@@ -733,42 +733,97 @@ const INDEX_HTML: &str = r##"<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <title>{{PROJECT_NAME}} — cadspec live</title>
+<script>
+  // Theme: follow the OS unless the user toggled an explicit choice. Pre-paint
+  // so there is no flash.
+  (function () {
+    try {
+      var t = localStorage.getItem('cadspec-theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    } catch (e) {}
+  })();
+</script>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap');
+  /* Dark is the default (the lab). System light, or the toggle, flips to the
+     plan-white. `[data-theme]` (set by the toggle) overrides the system. */
+  :root {
+    --bg: #0d0e11; --panel: #14161a; --panel-2: #181b20;
+    --ink: #d6dadf; --ink-strong: #ffffff; --ink-dim: #aab0b8;
+    --ink-mute: #7c828b; --ink-faint: #565b63;
+    --line: #23262c; --line-2: #2e323a;
+    --accent: #6ec6e6; --accent-soft: rgba(110,198,230,0.16);
+    --ok: #5dd39e; --err: #e0746e; --err-soft: #2a1212; --err-ink: #ff9f9a;
+    --code-bg: #0a0b0d; --code-ink: #cdd6df;
+  }
+  :root[data-theme="light"], :root[data-theme="light"] :root {
+    --bg: #f6f8fa; --panel: #ffffff; --panel-2: #eef2f5;
+    --ink: #1b2630; --ink-strong: #0a1218; --ink-dim: #41505b;
+    --ink-mute: #6b7882; --ink-faint: #97a2ab;
+    --line: #dde5ea; --line-2: #cdd7de;
+    --accent: #156c80; --accent-soft: rgba(21,108,128,0.12);
+    --ok: #1f8f5a; --err: #b23b34; --err-soft: #fbeae9; --err-ink: #9a3027;
+    --code-bg: #f0f3f5; --code-ink: #1b2630;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme]) {
+      --bg: #f6f8fa; --panel: #ffffff; --panel-2: #eef2f5;
+      --ink: #1b2630; --ink-strong: #0a1218; --ink-dim: #41505b;
+      --ink-mute: #6b7882; --ink-faint: #97a2ab;
+      --line: #dde5ea; --line-2: #cdd7de;
+      --accent: #156c80; --accent-soft: rgba(21,108,128,0.12);
+      --ok: #1f8f5a; --err: #b23b34; --err-soft: #fbeae9; --err-ink: #9a3027;
+      --code-bg: #f0f3f5; --code-ink: #1b2630;
+    }
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #0d0d0d; color: #ddd; font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-  header { display: flex; align-items: center; gap: 12px; padding: 9px 14px; background: #161616; border-bottom: 1px solid #2a2a2a; user-select: none; }
-  #dot { width: 10px; height: 10px; border-radius: 50%; background: #27ae60; flex: none; transition: background .2s; }
-  #dot.err { background: #e74c3c; }
-  #title { font-weight: 600; color: #fff; white-space: nowrap; }
-  .tag { font-size: 11px; color: #777; border: 1px solid #333; border-radius: 4px; padding: 2px 7px; white-space: nowrap; }
-  button { background: #1e1e1e; color: #bbb; border: 1px solid #383838; border-radius: 4px; padding: 3px 10px; font: inherit; font-size: 11px; cursor: pointer; }
-  button:hover { color: #fff; border-color: #555; }
-  button.active { color: #FFB300; border-color: #FFB300; }
-  #hint { margin-left: auto; font-size: 11px; color: #666; }
+  body { background: var(--bg); color: var(--ink); font-family: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  header { display: flex; align-items: center; gap: 12px; padding: 9px 14px; background: var(--panel-2); border-bottom: 1px solid var(--line-2); user-select: none; }
+  #dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); flex: none; transition: background .2s; }
+  #dot.err { background: var(--err); }
+  #title { font-weight: 600; color: var(--ink-strong); white-space: nowrap; }
+  .tag { font-size: 11px; color: var(--ink-mute); border: 1px solid var(--line-2); border-radius: 4px; padding: 2px 7px; white-space: nowrap; }
+  button { background: var(--panel); color: var(--ink-dim); border: 1px solid var(--line-2); border-radius: 4px; padding: 3px 10px; font: inherit; font-size: 11px; cursor: pointer; }
+  button:hover { color: var(--ink-strong); border-color: var(--ink-faint); }
+  button.active { color: var(--accent); border-color: var(--accent); }
+  #hint { margin-left: auto; font-size: 11px; color: var(--ink-faint); }
   main { flex: 1; display: flex; overflow: hidden; }
+  /* built-in .cf editor */
+  #editor { width: 340px; min-width: 200px; max-width: 720px; flex: none; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow: hidden; }
+  #editor.hidden { display: none; }
+  .ed-head { display: flex; gap: 6px; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+  #ed-file { flex: 1; min-width: 0; background: var(--panel-2); color: var(--ink); border: 1px solid var(--line-2); border-radius: 4px; font: inherit; font-size: 11px; padding: 3px 6px; }
+  #ed-text { flex: 1; resize: none; background: var(--code-bg); color: var(--code-ink); border: 0; padding: 10px 12px; font: inherit; font-size: 12px; line-height: 1.55; tab-size: 2; outline: none; white-space: pre; overflow: auto; }
+  #ed-status { padding: 5px 10px; font-size: 10px; color: var(--ink-faint); border-top: 1px solid var(--line); white-space: nowrap; overflow: hidden; }
+  #ed-status.ok { color: var(--ok); }
+  #ed-status.err { color: var(--err); }
+  #ed-status.dirty { color: var(--accent); }
+  #editor-resizer { width: 6px; flex: none; cursor: col-resize; background: transparent; transition: background .15s; }
+  #editor-resizer.hidden { display: none; }
+  #editor-resizer:hover, #editor-resizer.dragging { background: var(--accent); }
   /* left sidebar: two stacked panes (Layers over Planos), IntelliJ-style */
-  #sidebar { width: 200px; min-width: 130px; max-width: 560px; flex: none; background: #121212; border-right: 1px solid #222; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
+  #sidebar { width: 200px; min-width: 130px; max-width: 560px; flex: none; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow: hidden; user-select: none; }
   #layers-pane { flex: 1 1 auto; overflow-y: auto; padding: 8px; min-height: 48px; }
   #planos-pane { flex: none; height: 40%; overflow-y: auto; padding: 8px; min-height: 48px; }
   /* horizontal divider between the two panes */
-  #pane-divider { height: 6px; flex: none; cursor: row-resize; background: #161616; border-top: 1px solid #222; border-bottom: 1px solid #222; transition: background .15s; }
-  #pane-divider:hover, #pane-divider.dragging { background: #FFB300; }
+  #pane-divider { height: 6px; flex: none; cursor: row-resize; background: var(--panel-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); transition: background .15s; }
+  #pane-divider:hover, #pane-divider.dragging { background: var(--accent); }
   /* drag handle to resize the whole sidebar width */
   #layers-resizer { width: 6px; flex: none; cursor: col-resize; background: transparent; transition: background .15s; }
-  #layers-resizer:hover, #layers-resizer.dragging { background: #FFB300; }
-  #sidebar h3 { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin: 2px 0 8px 4px; }
+  #layers-resizer:hover, #layers-resizer.dragging { background: var(--accent); }
+  #sidebar h3 { font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 1px; margin: 2px 0 8px 4px; }
   .layer-row { display: flex; align-items: center; gap: 7px; padding: 5px 6px; border-radius: 4px; cursor: pointer; font-size: 12px; }
-  .layer-row:hover, .plano-row:hover { background: #1c1c1c; }
+  .layer-row:hover, .plano-row:hover { background: var(--panel-2); }
   .layer-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
-  .layer-row .st { margin-left: auto; font-size: 10px; color: #666; }
-  .layer-row.ghost { color: #777; }
-  .layer-row.off { color: #4a4a4a; }
+  .layer-row .st { margin-left: auto; font-size: 10px; color: var(--ink-faint); }
+  .layer-row.ghost { color: var(--ink-mute); }
+  .layer-row.off { color: var(--ink-faint); }
   .plano-row { display: flex; align-items: baseline; gap: 7px; padding: 5px 6px; border-radius: 4px; cursor: pointer; font-size: 12px; }
-  .plano-row .pv { margin-left: auto; font-size: 9px; color: #666; text-transform: uppercase; }
-  .plano-row.active { background: #2a2410; color: #FFB300; }
-  #planos-pane .empty { font-size: 11px; color: #555; padding: 4px 6px; line-height: 1.5; }
+  .plano-row .pv { margin-left: auto; font-size: 9px; color: var(--ink-faint); text-transform: uppercase; }
+  .plano-row.active { background: var(--accent-soft); color: var(--accent); }
+  #planos-pane .empty { font-size: 11px; color: var(--ink-faint); padding: 4px 6px; line-height: 1.5; }
   /* viewport */
-  #viewport { flex: 1; overflow: hidden; position: relative; cursor: grab; perspective: 2200px; background: #0d0d0d; }
+  #viewport { flex: 1; overflow: hidden; position: relative; cursor: grab; perspective: 2200px; background: var(--bg); }
   #viewport.panning { cursor: grabbing; }
   #canvas { position: absolute; transform-origin: 0 0; will-change: transform; transform-style: preserve-3d; }
   #canvas svg { display: block; }
@@ -776,20 +831,20 @@ const INDEX_HTML: &str = r##"<!DOCTYPE html>
   /* entity interaction */
   #canvas [data-id] { cursor: pointer; }
   #canvas [data-id]:hover { filter: brightness(1.8); }
-  #canvas .sel { filter: drop-shadow(0 0 5px #FFB300) brightness(1.6); }
+  #canvas .sel { filter: drop-shadow(0 0 5px var(--accent)) brightness(1.6); }
   /* inspector */
-  #inspector { width: 300px; flex: none; background: #121212; border-left: 1px solid #222; padding: 12px; overflow-y: auto; display: none; }
+  #inspector { width: 300px; flex: none; background: var(--panel); border-left: 1px solid var(--line); padding: 12px; overflow-y: auto; display: none; }
   #inspector.show { display: block; }
-  #inspector h2 { font-size: 13px; color: #FFB300; word-break: break-all; }
-  #inspector .meta { font-size: 11px; color: #888; margin: 6px 0 10px; line-height: 1.6; }
-  #inspector pre { background: #0a0a0a; border: 1px solid #262626; border-radius: 5px; padding: 9px; font-size: 11px; line-height: 1.45; white-space: pre-wrap; word-break: break-all; color: #c8e0c8; }
+  #inspector h2 { font-size: 13px; color: var(--accent); word-break: break-all; }
+  #inspector .meta { font-size: 11px; color: var(--ink-mute); margin: 6px 0 10px; line-height: 1.6; }
+  #inspector pre { background: var(--code-bg); border: 1px solid var(--line-2); border-radius: 5px; padding: 9px; font-size: 11px; line-height: 1.45; white-space: pre-wrap; word-break: break-all; color: var(--code-ink); }
   #inspector .btns { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
-  #inspector .note { font-size: 10px; color: #8a6d1a; margin-top: 8px; }
-  #error { display: none; position: absolute; left: 16px; right: 16px; bottom: 16px; background: #2a1212; border: 1px solid #e74c3c; border-radius: 6px; padding: 12px 16px; color: #ff9f9a; font-size: 13px; white-space: pre-wrap; max-height: 40%; overflow: auto; z-index: 10; }
+  #inspector .note { font-size: 10px; color: var(--ink-faint); margin-top: 8px; }
+  #error { display: none; position: absolute; left: 16px; right: 16px; bottom: 16px; background: var(--err-soft); border: 1px solid var(--err); border-radius: 6px; padding: 12px 16px; color: var(--err-ink); font-size: 13px; white-space: pre-wrap; max-height: 40%; overflow: auto; z-index: 10; }
   #error.show { display: block; }
-  #toast { position: fixed; bottom: 44px; left: 50%; transform: translateX(-50%); background: #1e1e1e; border: 1px solid #FFB300; color: #FFB300; font-size: 11px; padding: 5px 14px; border-radius: 4px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; }
+  #toast { position: fixed; bottom: 44px; left: 50%; transform: translateX(-50%); background: var(--panel-2); border: 1px solid var(--accent); color: var(--accent); font-size: 11px; padding: 5px 14px; border-radius: 4px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; }
   #toast.show { opacity: 1; }
-  footer { padding: 5px 14px; background: #121212; border-top: 1px solid #222; font-size: 11px; color: #555; user-select: none; }
+  footer { padding: 5px 14px; background: var(--panel); border-top: 1px solid var(--line); font-size: 11px; color: var(--ink-faint); user-select: none; }
 </style>
 </head>
 <body>
@@ -800,9 +855,20 @@ const INDEX_HTML: &str = r##"<!DOCTYPE html>
   <span class="tag" id="version">v0</span>
   <button id="btn3d" title="extruded 3D view (key: 3)">3D</button>
   <button id="btnfit" title="fit to view (key: F)">fit</button>
+  <button id="btneditor" class="active" title="toggle editor (key: E)">editor</button>
+  <button id="btntheme" title="theme — follow system / light / dark">◐</button>
   <span id="hint">edit .cf files — preview updates automatically</span>
 </header>
 <main>
+  <aside id="editor">
+    <div class="ed-head">
+      <select id="ed-file" title="project .cf files"></select>
+      <button id="ed-save" title="save (Ctrl+S)">save</button>
+    </div>
+    <textarea id="ed-text" spellcheck="false" placeholder="select a .cf file…"></textarea>
+    <div id="ed-status">ready</div>
+  </aside>
+  <div id="editor-resizer" title="drag to resize the editor"></div>
   <aside id="sidebar">
     <div id="layers-pane"><h3>Layers</h3><div id="layerlist"></div></div>
     <div id="pane-divider" title="drag to resize panes"></div>
@@ -1133,6 +1199,114 @@ events.onmessage = refresh;
 events.onerror = () => dot.classList.add('err');
 
 refresh();
+</script>
+<script>
+  // ── Theme toggle: auto (follow system) → light → dark → auto ───────────────
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById('btntheme');
+    var mq = matchMedia('(prefers-color-scheme: light)');
+    function mode() {
+      var t = root.dataset.theme;
+      return t === 'light' || t === 'dark' ? t : 'auto';
+    }
+    function apply(m) {
+      if (m === 'auto') {
+        delete root.dataset.theme;
+        try { localStorage.removeItem('cadspec-theme'); } catch (e) {}
+      } else {
+        root.dataset.theme = m;
+        try { localStorage.setItem('cadspec-theme', m); } catch (e) {}
+      }
+      var eff = m === 'auto' ? (mq.matches ? 'light' : 'dark') : m;
+      btn.textContent = m === 'auto' ? '◐' : m === 'light' ? '☀' : '☾';
+      btn.title = 'theme: ' + m + (m === 'auto' ? ' (' + eff + ')' : '') + ' — click to change';
+    }
+    btn.addEventListener('click', function () {
+      apply({ auto: 'light', light: 'dark', dark: 'auto' }[mode()]);
+    });
+    mq.addEventListener('change', function () { if (mode() === 'auto') apply('auto'); });
+    apply(mode());
+  })();
+
+  // ── Built-in .cf editor ────────────────────────────────────────────────────
+  (function () {
+    var editor = document.getElementById('editor');
+    var resizer = document.getElementById('editor-resizer');
+    var sel = document.getElementById('ed-file');
+    var text = document.getElementById('ed-text');
+    var saveBtn = document.getElementById('ed-save');
+    var status = document.getElementById('ed-status');
+    var toggle = document.getElementById('btneditor');
+    var dirty = false;
+
+    function setStatus(msg, cls) { status.textContent = msg; status.className = cls || ''; }
+
+    function loadFile(name) {
+      fetch('/file?name=' + encodeURIComponent(name))
+        .then(function (r) { return r.text(); })
+        .then(function (t) { text.value = t; dirty = false; setStatus(name); })
+        .catch(function () { setStatus('cannot load ' + name, 'err'); });
+    }
+    function loadFiles() {
+      fetch('/files').then(function (r) { return r.json(); }).then(function (j) {
+        sel.innerHTML = '';
+        (j.files || []).forEach(function (f) {
+          var o = document.createElement('option');
+          o.value = f; o.textContent = f; sel.appendChild(o);
+        });
+        if (sel.options.length) { loadFile(sel.value); }
+        else { text.value = ''; setStatus('no .cf files'); }
+      }).catch(function () { setStatus('cannot list files', 'err'); });
+    }
+    function save() {
+      var name = sel.value;
+      if (!name) return;
+      setStatus('saving…');
+      fetch('/save?name=' + encodeURIComponent(name), { method: 'POST', body: text.value })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (j.ok) { dirty = false; setStatus('saved · ' + name, 'ok'); }
+          else { dirty = false; setStatus('saved · build error (see viewer)', 'err'); }
+        })
+        .catch(function () { setStatus('save failed', 'err'); });
+    }
+
+    sel.addEventListener('change', function () {
+      if (!dirty || confirm('Discard unsaved changes?')) loadFile(sel.value);
+    });
+    text.addEventListener('input', function () {
+      if (!dirty) { dirty = true; setStatus('● ' + sel.value + ' (unsaved)', 'dirty'); }
+    });
+    saveBtn.addEventListener('click', save);
+    // Keep editor keystrokes out of the viewer's shortcuts (3 / f / 1-9 / esc).
+    text.addEventListener('keydown', function (e) {
+      e.stopPropagation();
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); save(); }
+    });
+    sel.addEventListener('keydown', function (e) { e.stopPropagation(); });
+
+    toggle.addEventListener('click', function () {
+      var hidden = editor.classList.toggle('hidden');
+      resizer.classList.toggle('hidden', hidden);
+      toggle.classList.toggle('active', !hidden);
+    });
+    window.addEventListener('keydown', function (e) {
+      var tag = (e.target && e.target.tagName) || '';
+      if ((e.key === 'e' || e.key === 'E') && !/INPUT|TEXTAREA|SELECT/.test(tag)) toggle.click();
+    });
+
+    // Drag to resize the editor pane.
+    var drag = false;
+    resizer.addEventListener('mousedown', function (e) { drag = true; resizer.classList.add('dragging'); e.preventDefault(); });
+    window.addEventListener('mousemove', function (e) {
+      if (!drag) return;
+      editor.style.width = Math.max(200, Math.min(720, e.clientX)) + 'px';
+    });
+    window.addEventListener('mouseup', function () { drag = false; resizer.classList.remove('dragging'); });
+
+    loadFiles();
+  })();
 </script>
 </body>
 </html>

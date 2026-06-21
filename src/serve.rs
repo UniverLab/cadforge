@@ -437,9 +437,95 @@ fn handle_connection(stream: TcpStream, state: &Shared) -> std::io::Result<()> {
             let body = entity_block_json(&state.project_dir, &id);
             respond(stream, "200 OK", "application/json", body.as_bytes())
         }
+        // ── Built-in .cf editor ────────────────────────────────────────────
+        "/files" => {
+            let mut names: Vec<String> = std::fs::read_dir(&state.project_dir)
+                .map(|rd| {
+                    rd.filter_map(|e| e.ok())
+                        .map(|e| e.file_name().to_string_lossy().into_owned())
+                        .filter(|n| n.ends_with(".cf"))
+                        .collect()
+                })
+                .unwrap_or_default();
+            names.sort();
+            let body = serde_json::json!({ "files": names }).to_string();
+            respond(stream, "200 OK", "application/json", body.as_bytes())
+        }
+        "/file" => {
+            let name = query_param(query, "name").unwrap_or_default();
+            match safe_cf_name(&name) {
+                Some(n) => match std::fs::read_to_string(state.project_dir.join(&n)) {
+                    Ok(s) => respond(stream, "200 OK", "text/plain; charset=utf-8", s.as_bytes()),
+                    Err(_) => respond(stream, "404 Not Found", "text/plain", b"not found"),
+                },
+                None => respond(stream, "400 Bad Request", "text/plain", b"bad name"),
+            }
+        }
+        "/save" => {
+            let name = query_param(query, "name").unwrap_or_default();
+            let body = read_request_body(&mut reader);
+            match safe_cf_name(&name) {
+                Some(n) => match std::fs::write(state.project_dir.join(&n), &body) {
+                    Ok(()) => {
+                        rebuild(&state.project_dir, state);
+                        let st = state.state.lock().unwrap();
+                        let resp = serde_json::json!({
+                            "ok": st.error.is_none(),
+                            "version": st.version,
+                            "error": st.error,
+                        })
+                        .to_string();
+                        drop(st);
+                        respond(stream, "200 OK", "application/json", resp.as_bytes())
+                    }
+                    Err(e) => respond(
+                        stream,
+                        "500 Internal Server Error",
+                        "text/plain",
+                        format!("write error: {e}").as_bytes(),
+                    ),
+                },
+                None => respond(stream, "400 Bad Request", "text/plain", b"bad name"),
+            }
+        }
         "/events" => serve_events(stream, state),
         _ => respond(stream, "404 Not Found", "text/plain", b"not found"),
     }
+}
+
+/// Accept only a bare `*.cf` filename (no path traversal) for the editor.
+fn safe_cf_name(name: &str) -> Option<String> {
+    if name.is_empty()
+        || name.contains('/')
+        || name.contains('\\')
+        || name.contains("..")
+        || !name.ends_with(".cf")
+    {
+        return None;
+    }
+    Some(name.to_string())
+}
+
+/// Read the remaining request headers, then the body of `Content-Length` bytes.
+fn read_request_body(reader: &mut BufReader<TcpStream>) -> Vec<u8> {
+    let mut len = 0usize;
+    let mut line = String::new();
+    loop {
+        line.clear();
+        if reader.read_line(&mut line).unwrap_or(0) == 0 {
+            break;
+        }
+        let t = line.trim_end();
+        if t.is_empty() {
+            break;
+        }
+        if let Some(v) = t.to_ascii_lowercase().strip_prefix("content-length:") {
+            len = v.trim().parse().unwrap_or(0);
+        }
+    }
+    let mut body = vec![0u8; len];
+    let _ = std::io::Read::read_exact(reader, &mut body);
+    body
 }
 
 fn query_param(query: &str, key: &str) -> Option<String> {

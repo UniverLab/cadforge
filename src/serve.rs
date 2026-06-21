@@ -305,6 +305,13 @@ fn rebuild(project_dir: &Path, state: &Shared) {
     state.changed.notify_all();
 }
 
+/// Build the scene's 3D solids as a glTF document (for the WebGL viewer).
+fn scene_gltf(project_dir: &Path) -> Result<String> {
+    let (_project, layers) = load_project_layers(project_dir, None)?;
+    let meshes = crate::render3d::scene_meshes(&layers);
+    Ok(crate::gltf::scene_to_gltf(&meshes))
+}
+
 /// Render a plano by name to SVG (on demand, for the `/plano.svg` endpoint).
 fn render_named_plano(project_dir: &Path, name: &str) -> Result<String> {
     let project = parse_project(&project_dir.join("project.toml"))?;
@@ -394,6 +401,11 @@ fn handle_connection(stream: TcpStream, state: &Shared) -> std::io::Result<()> {
         "/preview3d.svg" => {
             let svg = Arc::clone(&state.state.lock().unwrap().svg3d);
             respond(stream, "200 OK", "image/svg+xml", svg.as_bytes())
+        }
+        "/scene.gltf" => {
+            let body =
+                scene_gltf(&state.project_dir).unwrap_or_else(|_| crate::gltf::scene_to_gltf(&[]));
+            respond(stream, "200 OK", "model/gltf+json", body.as_bytes())
         }
         "/plano.svg" => {
             // Rendered on demand (sections run CSG, so we don't precompute all).
@@ -840,6 +852,10 @@ const INDEX_HTML: &str = r##"<!DOCTYPE html>
   /* viewport */
   #viewport { flex: 1; overflow: hidden; position: relative; cursor: grab; perspective: 2200px; background: var(--bg); }
   #viewport.panning { cursor: grabbing; }
+  #viewport.is3d { cursor: default; }
+  /* interactive WebGL (glTF) layer, shown in 3D mode */
+  #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+  #gl.show { display: block; }
   #canvas { position: absolute; transform-origin: 0 0; will-change: transform; transform-style: preserve-3d; }
   #canvas svg { display: block; }
   .plane { position: absolute; left: 0; top: 0; }
@@ -895,6 +911,7 @@ const INDEX_HTML: &str = r##"<!DOCTYPE html>
   <div id="layers-resizer" title="drag to resize · double-click to reset"></div>
   <div id="viewport">
     <div id="canvas"></div>
+    <canvas id="gl"></canvas>
     <pre id="error"></pre>
   </div>
   <aside id="inspector">
@@ -947,6 +964,7 @@ function svgSize() {
   return { w: parseFloat(svg.getAttribute('width')), h: parseFloat(svg.getAttribute('height')) };
 }
 function fitToView() {
+  if (mode3d) { if (window.gl3d) window.gl3d.frame(); return; }
   const s = svgSize();
   if (!s) return;
   const vw = viewport.clientWidth, vh = viewport.clientHeight;
@@ -959,7 +977,8 @@ function fitToView() {
 
 // ── rendering ───────────────────────────────────────────────────────
 function renderCanvas() {
-  const content = currentPlano ? planoSvg : (mode3d ? svg3dText : svgText);
+  if (mode3d) return;                 // 3D is the WebGL (glTF) layer, not the SVG
+  const content = currentPlano ? planoSvg : svgText;
   if (!content) return;
   canvas.innerHTML = content;
   applyLayerStates();
@@ -1099,11 +1118,13 @@ async function refresh() {
     }
     renderCanvas();
     if (!fitted) fitToView();
+    if (mode3d && window.gl3d) window.gl3d.reload();
   }
 }
 
 // ── input ───────────────────────────────────────────────────────────
 viewport.addEventListener('wheel', e => {
+  if (mode3d) return;                 // OrbitControls handles zoom in 3D
   e.preventDefault();
   const factor = Math.exp(-e.deltaY * 0.0012);
   const next = Math.min(Math.max(scale * factor, 0.05), 50);
@@ -1117,6 +1138,7 @@ viewport.addEventListener('wheel', e => {
 
 let panning = false, moved = 0, px = 0, py = 0;
 viewport.addEventListener('mousedown', e => {
+  if (mode3d) return;                 // OrbitControls handles rotate/pan in 3D
   panning = true; moved = 0; px = e.clientX; py = e.clientY;
   viewport.classList.add('panning');
 });
@@ -1132,18 +1154,27 @@ window.addEventListener('mouseup', () => {
   viewport.classList.remove('panning');
 });
 viewport.addEventListener('click', e => {
+  if (mode3d) return;                          // no entity-picking in 3D
   if (moved > 5) return;                       // it was a pan, not a click
   const el = e.target.closest('[data-id]');
-  if (el && !mode3d) select(el.getAttribute('data-id'));
-  else if (!el) deselect();
+  if (el) select(el.getAttribute('data-id'));
+  else deselect();
 });
 viewport.addEventListener('dblclick', fitToView);
 
 function toggle3d() {
   mode3d = !mode3d;
   document.getElementById('btn3d').classList.toggle('active', mode3d);
-  renderCanvas();
-  fitToView();
+  viewport.classList.toggle('is3d', mode3d);
+  if (mode3d) {
+    canvas.style.display = 'none';
+    if (window.gl3d) window.gl3d.mount();
+  } else {
+    canvas.style.display = '';
+    if (window.gl3d) window.gl3d.unmount();
+    renderCanvas();
+    fitToView();
+  }
 }
 document.getElementById('btn3d').onclick = toggle3d;
 document.getElementById('btnfit').onclick = fitToView;
@@ -1354,6 +1385,80 @@ refresh();
 
     loadFiles();
   })();
+</script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+  // Interactive 3D: load the scene as glTF and orbit it. The flat axonometric
+  // SVG is no longer used for 3D — this is the real model.
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+  var glCanvas = document.getElementById('gl');
+  var renderer, scene, camera, controls, model, raf = null, inited = false;
+  var loader = new GLTFLoader();
+
+  function bgColor() {
+    var c = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    return new THREE.Color(c || '#0d0e11');
+  }
+  function resize() {
+    if (!renderer) return;
+    var w = glCanvas.clientWidth, h = glCanvas.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  function init() {
+    if (inited) return; inited = true;
+    renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio || 1);
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(45, 1, 0.01, 1e6);
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true; controls.dampingFactor = 0.08;
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    var d1 = new THREE.DirectionalLight(0xffffff, 0.85); d1.position.set(1, 2, 1.5); scene.add(d1);
+    var d2 = new THREE.DirectionalLight(0xffffff, 0.3); d2.position.set(-1.2, -0.4, -1); scene.add(d2);
+    window.addEventListener('resize', resize);
+  }
+  function frame() {
+    if (!model) return;
+    var box = new THREE.Box3().setFromObject(model);
+    var size = box.getSize(new THREE.Vector3());
+    var center = box.getCenter(new THREE.Vector3());
+    var r = Math.max(size.x, size.y, size.z, 1) * 0.5;
+    controls.target.copy(center);
+    var dist = r / Math.tan((camera.fov * Math.PI / 180) / 2) * 1.7;
+    camera.position.set(center.x + dist * 0.8, center.y + dist * 0.7, center.z + dist * 0.9);
+    camera.near = Math.max(r / 200, 0.001); camera.far = r * 200; camera.updateProjectionMatrix();
+    controls.update();
+  }
+  function load() {
+    loader.load('/scene.gltf?t=' + Date.now(), function (g) {
+      if (model) scene.remove(model);
+      model = g.scene; scene.add(model); frame();
+    }, undefined, function () {});
+  }
+  function loop() {
+    raf = requestAnimationFrame(loop);
+    controls.update();
+    renderer.setClearColor(bgColor(), 1);
+    renderer.render(scene, camera);
+  }
+  window.gl3d = {
+    mount: function () { init(); glCanvas.classList.add('show'); resize(); load(); if (!raf) loop(); },
+    unmount: function () { glCanvas.classList.remove('show'); if (raf) { cancelAnimationFrame(raf); raf = null; } },
+    reload: function () { if (glCanvas.classList.contains('show')) load(); },
+    frame: function () { frame(); }
+  };
 </script>
 </body>
 </html>

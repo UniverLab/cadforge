@@ -14,6 +14,37 @@ pub struct ProjectFile {
     pub layers: IndexMap<String, LayerEntry>,
     #[serde(default)]
     pub constraints: Option<toml::Value>,
+    /// Drawing sheets ("planos"): named views of the model with a title block.
+    #[serde(default, rename = "plano")]
+    pub planos: Vec<Plano>,
+}
+
+/// A drawing sheet: a named view of the model at a paper size, with a title
+/// block (rótulo). Views: `plan` (top), `iso`, `front`/`back`/`left`/`right`
+/// elevations, or `section` (a cut).
+#[derive(Debug, Clone, Deserialize)]
+pub struct Plano {
+    pub name: String,
+    #[serde(default = "default_view")]
+    pub view: String,
+    /// Sheet size [width, height] in mm. Default A3 landscape.
+    pub size: Option<[f64; 2]>,
+    /// Drawing scale label for the title block (e.g. "1:50").
+    pub scale: Option<String>,
+    /// Title shown in the rótulo (defaults to the plano name).
+    pub title: Option<String>,
+    /// Path to a `.cf` file drawn as a custom title block instead of the default.
+    pub rotulo: Option<String>,
+    /// Section only: cut axis `x` | `y` | `z`.
+    pub cut_axis: Option<String>,
+    /// Section only: position of the cut plane along `cut_axis`.
+    pub cut_at: Option<f64>,
+    /// Section only: which side to keep, `min` (default) or `max`.
+    pub keep: Option<String>,
+}
+
+fn default_view() -> String {
+    "plan".to_string()
 }
 
 #[derive(Debug, Clone, Deserialize)]

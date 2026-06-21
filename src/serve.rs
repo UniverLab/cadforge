@@ -6,20 +6,23 @@
 //!
 //! Viewer features: pan/zoom, click-to-inspect any entity (shows its source
 //! TOML block, copyable for targeted agent edits), per-layer visibility with
-//! a ghost mode for tracing over other floors, and a 3D stacked-layers view.
+//! a ghost mode for tracing over other floors, and an extruded 3D view.
 //!
 //! Plain `std::net` HTTP — this is a localhost dev server, no framework needed.
 
 use crate::parser::parse_project;
+use crate::render3d::render_scene_3d;
 use crate::svg::{layer_display_color, load_project_layers, render_scene_from};
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::sync::{Arc, Condvar, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 const SVG_WIDTH: u32 = 1600;
 const DEBOUNCE: Duration = Duration::from_millis(80);
@@ -28,11 +31,15 @@ const SSE_KEEPALIVE: Duration = Duration::from_secs(15);
 struct LiveState {
     /// Arc so request handlers serve the SVG without copying it.
     svg: Arc<String>,
+    /// Extruded axonometric 3D render of the same scene.
+    svg3d: Arc<String>,
     error: Option<String>,
     version: u64,
     project_name: String,
     /// (name, color) per layer, for the layer panel.
     layers: Vec<(String, String)>,
+    /// (name, view, title) per plano, for the planos panel.
+    planos: Vec<(String, String, String)>,
 }
 
 /// Shared state plus a condvar so SSE clients are woken the instant a rebuild
@@ -55,10 +62,12 @@ pub fn serve_project(project_dir: &Path, port: u16, open: bool) -> Result<()> {
     let state: Shared = Arc::new(Live {
         state: Mutex::new(LiveState {
             svg: Arc::new(String::new()),
+            svg3d: Arc::new(String::new()),
             error: None,
             version: 0,
             project_name: project.project.name.clone(),
             layers: Vec::new(),
+            planos: Vec::new(),
         }),
         changed: Condvar::new(),
         project_dir: project_dir.clone(),
@@ -94,8 +103,162 @@ pub fn serve_project(project_dir: &Path, port: u16, open: bool) -> Result<()> {
     Ok(())
 }
 
+// ── Background daemon ──────────────────────────────────────────────────────
+//
+// `serve` runs detached by default: a parent process validates the project and
+// the port, spawns the real (foreground) server in its own process group with
+// its output redirected to a log file, waits until the port actually accepts a
+// connection, then prints the URL and exits. Waiting for real readiness means
+// we never claim "running" for a server that failed to come up.
+
+fn runtime_dir(project_dir: &Path) -> PathBuf {
+    project_dir.join(".cadforge")
+}
+
+fn pid_path(project_dir: &Path) -> PathBuf {
+    runtime_dir(project_dir).join("serve.pid")
+}
+
+fn log_path(project_dir: &Path) -> PathBuf {
+    runtime_dir(project_dir).join("serve.log")
+}
+
+/// True if `pid` refers to a live process (`kill -0`).
+fn process_alive(pid: u32) -> bool {
+    Command::new("kill")
+        .arg("-0")
+        .arg(pid.to_string())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+/// The recorded daemon pid for this project, but only if it is still alive.
+fn running_pid(project_dir: &Path) -> Option<u32> {
+    let pid: u32 = fs::read_to_string(pid_path(project_dir))
+        .ok()?
+        .trim()
+        .parse()
+        .ok()?;
+    process_alive(pid).then_some(pid)
+}
+
+/// Block until the server accepts a connection on `port`, or `timeout` elapses.
+fn wait_until_ready(port: u16, timeout: Duration) -> bool {
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        if TcpStream::connect_timeout(&addr, Duration::from_millis(200)).is_ok() {
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    false
+}
+
+/// Start the live preview server detached in the background (the default).
+pub fn serve_daemon(project_dir: &Path, port: u16, open: bool) -> Result<()> {
+    // Validate the project up front so config errors surface here, not in a log.
+    parse_project(&project_dir.join("project.toml"))?;
+    let project_dir = project_dir
+        .canonicalize()
+        .unwrap_or_else(|_| project_dir.to_path_buf());
+    let url = format!("http://127.0.0.1:{}", port);
+
+    if let Some(pid) = running_pid(&project_dir) {
+        println!("◉ cadforge serve already running (pid {pid})");
+        println!("  Preview: {url}");
+        println!("  Stop with: cadforge serve --stop");
+        if open {
+            open_browser(&url);
+        }
+        return Ok(());
+    }
+
+    // Fail fast on a busy port instead of letting the detached child die quietly.
+    match TcpListener::bind(("127.0.0.1", port)) {
+        Ok(listener) => drop(listener),
+        Err(e) => bail!("Cannot bind 127.0.0.1:{port} (port in use?): {e}"),
+    }
+
+    fs::create_dir_all(runtime_dir(&project_dir))?;
+    let log = log_path(&project_dir);
+    let log_file = File::create(&log)?;
+
+    let exe = std::env::current_exe().context("cannot locate cadforge executable")?;
+    let mut cmd = Command::new(exe);
+    cmd.arg("serve")
+        .arg("--foreground")
+        .arg("--path")
+        .arg(&project_dir)
+        .arg("--port")
+        .arg(port.to_string())
+        .stdin(Stdio::null())
+        .stdout(Stdio::from(log_file.try_clone()?))
+        .stderr(Stdio::from(log_file));
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        // Own process group: survives the parent shell / agent command exiting.
+        cmd.process_group(0);
+    }
+    let child = cmd.spawn().context("failed to spawn background server")?;
+    let pid = child.id();
+    fs::write(pid_path(&project_dir), pid.to_string())?;
+
+    if wait_until_ready(port, Duration::from_secs(5)) {
+        println!("◉ cadforge serve — running in background (pid {pid})");
+        println!("  Preview: {url}");
+        println!("  Logs:    {}", log.display());
+        println!("  Stop with: cadforge serve --stop");
+        if open {
+            open_browser(&url);
+        }
+        Ok(())
+    } else {
+        let _ = fs::remove_file(pid_path(&project_dir));
+        let tail = fs::read_to_string(&log).unwrap_or_default();
+        bail!(
+            "server did not come up within 5s. Log:\n{}",
+            tail.trim_end()
+        );
+    }
+}
+
+/// Stop the background server running for this project.
+pub fn serve_stop(project_dir: &Path, _port: u16) -> Result<()> {
+    let project_dir = project_dir
+        .canonicalize()
+        .unwrap_or_else(|_| project_dir.to_path_buf());
+    let pid_file = pid_path(&project_dir);
+
+    let Some(pid) = running_pid(&project_dir) else {
+        let _ = fs::remove_file(&pid_file); // clean up any stale pidfile
+        println!("No cadforge serve daemon running for this project.");
+        return Ok(());
+    };
+
+    let stopped = Command::new("kill")
+        .arg(pid.to_string())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    let _ = fs::remove_file(&pid_file);
+
+    if stopped {
+        println!("✓ Stopped cadforge serve (pid {pid}).");
+        Ok(())
+    } else {
+        bail!("failed to stop process {pid}")
+    }
+}
+
 fn rebuild(project_dir: &Path, state: &Shared) {
-    let result = (|| -> Result<(String, Vec<(String, String)>)> {
+    type PlanoInfo = Vec<(String, String, String)>;
+    type Built = (String, String, Vec<(String, String)>, PlanoInfo);
+    let result = (|| -> Result<Built> {
         let (project, layers) = load_project_layers(project_dir, None)?;
         let scene = render_scene_from(
             &project.project.name,
@@ -104,19 +267,33 @@ fn rebuild(project_dir: &Path, state: &Shared) {
             SVG_WIDTH,
             &[],
         );
+        let scene3d = render_scene_3d(&layers, SVG_WIDTH);
         let layer_info = layers
             .iter()
             .enumerate()
             .map(|(i, (name, cf))| (name.clone(), layer_display_color(cf, i)))
             .collect();
-        Ok((scene.svg, layer_info))
+        let plano_info = project
+            .planos
+            .iter()
+            .map(|p| {
+                (
+                    p.name.clone(),
+                    p.view.clone(),
+                    p.title.clone().unwrap_or_else(|| p.name.clone()),
+                )
+            })
+            .collect();
+        Ok((scene.svg, scene3d.svg, layer_info, plano_info))
     })();
 
     let mut st = state.state.lock().unwrap();
     match result {
-        Ok((svg, layers)) => {
+        Ok((svg, svg3d, layers, planos)) => {
             st.svg = Arc::new(svg);
+            st.svg3d = Arc::new(svg3d);
             st.layers = layers;
+            st.planos = planos;
             st.error = None;
         }
         Err(e) => {
@@ -126,6 +303,17 @@ fn rebuild(project_dir: &Path, state: &Shared) {
     st.version += 1;
     drop(st);
     state.changed.notify_all();
+}
+
+/// Render a plano by name to SVG (on demand, for the `/plano.svg` endpoint).
+fn render_named_plano(project_dir: &Path, name: &str) -> Result<String> {
+    let project = parse_project(&project_dir.join("project.toml"))?;
+    let plano = project
+        .planos
+        .iter()
+        .find(|p| p.name == name)
+        .with_context(|| format!("no plano named '{name}'"))?;
+    Ok(crate::planos::render_plano(project_dir, plano, SVG_WIDTH)?.svg)
 }
 
 fn spawn_watcher(project_dir: PathBuf, state: Shared) -> Result<()> {
@@ -203,6 +391,22 @@ fn handle_connection(stream: TcpStream, state: &Shared) -> std::io::Result<()> {
             let svg = Arc::clone(&state.state.lock().unwrap().svg);
             respond(stream, "200 OK", "image/svg+xml", svg.as_bytes())
         }
+        "/preview3d.svg" => {
+            let svg = Arc::clone(&state.state.lock().unwrap().svg3d);
+            respond(stream, "200 OK", "image/svg+xml", svg.as_bytes())
+        }
+        "/plano.svg" => {
+            // Rendered on demand (sections run CSG, so we don't precompute all).
+            let name = query_param(query, "name").unwrap_or_default();
+            let dir = &state.project_dir;
+            let svg = render_named_plano(dir, &name).unwrap_or_else(|e| {
+                format!(
+                    r##"<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200"><rect width="100%" height="100%" fill="#0d0d0d"/><text x="20" y="40" fill="#ff9f9a" font-family="monospace" font-size="14">plano error: {}</text></svg>"##,
+                    html_escape(&format!("{e:#}"))
+                )
+            });
+            respond(stream, "200 OK", "image/svg+xml", svg.as_bytes())
+        }
         "/state" => {
             let st = state.state.lock().unwrap();
             let layers: Vec<_> = st
@@ -210,11 +414,19 @@ fn handle_connection(stream: TcpStream, state: &Shared) -> std::io::Result<()> {
                 .iter()
                 .map(|(name, color)| serde_json::json!({"name": name, "color": color}))
                 .collect();
+            let planos: Vec<_> = st
+                .planos
+                .iter()
+                .map(|(name, view, title)| {
+                    serde_json::json!({"name": name, "view": view, "title": title})
+                })
+                .collect();
             let body = serde_json::json!({
                 "version": st.version,
                 "project": st.project_name,
                 "error": st.error,
                 "layers": layers,
+                "planos": planos,
             })
             .to_string();
             drop(st);
@@ -448,15 +660,27 @@ const INDEX_HTML: &str = r##"<!DOCTYPE html>
   button.active { color: #FFB300; border-color: #FFB300; }
   #hint { margin-left: auto; font-size: 11px; color: #666; }
   main { flex: 1; display: flex; overflow: hidden; }
-  /* layer panel */
-  #layers { width: 170px; flex: none; background: #121212; border-right: 1px solid #222; padding: 8px; overflow-y: auto; user-select: none; }
-  #layers h3 { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin: 2px 0 8px 4px; }
+  /* left sidebar: two stacked panes (Layers over Planos), IntelliJ-style */
+  #sidebar { width: 200px; min-width: 130px; max-width: 560px; flex: none; background: #121212; border-right: 1px solid #222; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
+  #layers-pane { flex: 1 1 auto; overflow-y: auto; padding: 8px; min-height: 48px; }
+  #planos-pane { flex: none; height: 40%; overflow-y: auto; padding: 8px; min-height: 48px; }
+  /* horizontal divider between the two panes */
+  #pane-divider { height: 6px; flex: none; cursor: row-resize; background: #161616; border-top: 1px solid #222; border-bottom: 1px solid #222; transition: background .15s; }
+  #pane-divider:hover, #pane-divider.dragging { background: #FFB300; }
+  /* drag handle to resize the whole sidebar width */
+  #layers-resizer { width: 6px; flex: none; cursor: col-resize; background: transparent; transition: background .15s; }
+  #layers-resizer:hover, #layers-resizer.dragging { background: #FFB300; }
+  #sidebar h3 { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin: 2px 0 8px 4px; }
   .layer-row { display: flex; align-items: center; gap: 7px; padding: 5px 6px; border-radius: 4px; cursor: pointer; font-size: 12px; }
-  .layer-row:hover { background: #1c1c1c; }
+  .layer-row:hover, .plano-row:hover { background: #1c1c1c; }
   .layer-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .layer-row .st { margin-left: auto; font-size: 10px; color: #666; }
   .layer-row.ghost { color: #777; }
   .layer-row.off { color: #4a4a4a; }
+  .plano-row { display: flex; align-items: baseline; gap: 7px; padding: 5px 6px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+  .plano-row .pv { margin-left: auto; font-size: 9px; color: #666; text-transform: uppercase; }
+  .plano-row.active { background: #2a2410; color: #FFB300; }
+  #planos-pane .empty { font-size: 11px; color: #555; padding: 4px 6px; line-height: 1.5; }
   /* viewport */
   #viewport { flex: 1; overflow: hidden; position: relative; cursor: grab; perspective: 2200px; background: #0d0d0d; }
   #viewport.panning { cursor: grabbing; }
@@ -488,12 +712,17 @@ const INDEX_HTML: &str = r##"<!DOCTYPE html>
   <span id="title">{{PROJECT_NAME}}</span>
   <span class="tag">cadforge live</span>
   <span class="tag" id="version">v0</span>
-  <button id="btn3d" title="stack layers in 3D (key: 3)">3D</button>
+  <button id="btn3d" title="extruded 3D view (key: 3)">3D</button>
   <button id="btnfit" title="fit to view (key: F)">fit</button>
   <span id="hint">edit .cf files — preview updates automatically</span>
 </header>
 <main>
-  <aside id="layers"><h3>Layers</h3><div id="layerlist"></div></aside>
+  <aside id="sidebar">
+    <div id="layers-pane"><h3>Layers</h3><div id="layerlist"></div></div>
+    <div id="pane-divider" title="drag to resize panes"></div>
+    <div id="planos-pane"><h3>Planos</h3><div id="planoslist"></div></div>
+  </aside>
+  <div id="layers-resizer" title="drag to resize · double-click to reset"></div>
   <div id="viewport">
     <div id="canvas"></div>
     <pre id="error"></pre>
@@ -520,6 +749,7 @@ const dot = document.getElementById('dot');
 const errBox = document.getElementById('error');
 const versionTag = document.getElementById('version');
 const layerList = document.getElementById('layerlist');
+const planosList = document.getElementById('planoslist');
 const inspector = document.getElementById('inspector');
 const toast = document.getElementById('toast');
 
@@ -527,14 +757,19 @@ let scale = 1, tx = 0, ty = 0;
 let fitted = false;
 let mode3d = false;
 let svgText = '';
+let svg3dText = '';
 let layersInfo = [];                 // [{name, color}]
+let planosInfo = [];                 // [{name, view, title}]
+let currentPlano = null;             // active plano name, or null for the model
+let planoSvg = '';
 const layerState = {};               // name → 'on' | 'ghost' | 'off'
 let selectedId = null;
 
 // ── transform / view ────────────────────────────────────────────────
 function applyTransform() {
-  const tilt = mode3d ? ' rotateX(55deg) rotateZ(-38deg)' : '';
-  canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})${tilt}`;
+  // The 3D view is a real axonometric projection baked into the SVG, so the
+  // canvas only ever needs pan + zoom (no CSS tilt).
+  canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
 }
 function svgSize() {
   const svg = canvas.querySelector('svg');
@@ -545,57 +780,29 @@ function fitToView() {
   const s = svgSize();
   if (!s) return;
   const vw = viewport.clientWidth, vh = viewport.clientHeight;
-  scale = Math.min(vw / s.w, vh / s.h) * (mode3d ? 0.7 : 0.96);
+  scale = Math.min(vw / s.w, vh / s.h) * 0.96;
   tx = (vw - s.w * scale) / 2;
-  ty = (vh - s.h * scale) / 2 + (mode3d ? vh * 0.08 : 0);
+  ty = (vh - s.h * scale) / 2;
   applyTransform();
   fitted = true;
 }
 
 // ── rendering ───────────────────────────────────────────────────────
 function renderCanvas() {
-  if (!svgText) return;
-  if (!mode3d) {
-    canvas.innerHTML = svgText;
-  } else {
-    canvas.innerHTML = '';
-    const tpl = document.createElement('div');
-    tpl.innerHTML = svgText;
-    const names = [...tpl.querySelectorAll('g[data-layer]')].map(g => g.dataset.layer);
-    names.forEach((name, i) => {
-      const div = document.createElement('div');
-      div.className = 'plane';
-      div.style.transform = `translateZ(${i * 70}px)`;
-      div.innerHTML = svgText;
-      const svg = div.querySelector('svg');
-      svg.querySelectorAll('g[data-layer]').forEach(g => { if (g.dataset.layer !== name) g.remove(); });
-      if (i > 0) {
-        svg.querySelector('g[data-grid]')?.remove();
-        svg.querySelector('rect')?.remove();        // background only on base plane
-      } else {
-        svg.querySelector('rect')?.setAttribute('fill-opacity', '0.85');
-      }
-      canvas.appendChild(div);
-    });
-  }
+  const content = currentPlano ? planoSvg : (mode3d ? svg3dText : svgText);
+  if (!content) return;
+  canvas.innerHTML = content;
   applyLayerStates();
   applySelection();
 }
 
 function applyLayerStates() {
-  canvas.querySelectorAll('g[data-layer]').forEach(g => {
+  // 2D tags layers on <g>; the 3D view tags each projected face — match both.
+  canvas.querySelectorAll('[data-layer]').forEach(g => {
     const st = layerState[g.dataset.layer] || 'on';
     g.style.opacity = st === 'on' ? '' : st === 'ghost' ? '0.16' : '0';
     g.style.pointerEvents = st === 'on' ? '' : 'none';
   });
-  if (mode3d) {
-    canvas.querySelectorAll('.plane').forEach(p => {
-      const g = p.querySelector('g[data-layer]');
-      if (!g) return;
-      const st = layerState[g.dataset.layer] || 'on';
-      p.style.display = st === 'off' ? 'none' : '';
-    });
-  }
 }
 
 function renderLayerPanel() {
@@ -615,6 +822,37 @@ function cycleLayer(name) {
   layerState[name] = next[layerState[name] || 'on'];
   renderLayerPanel();
   applyLayerStates();
+}
+
+// ── planos panel ────────────────────────────────────────────────────
+function renderPlanosPanel() {
+  planosList.innerHTML = '';
+  if (!planosInfo.length) {
+    planosList.innerHTML = '<div class="empty">no planos — add [[plano]] to project.toml</div>';
+    return;
+  }
+  planosInfo.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'plano-row' + (currentPlano === p.name ? ' active' : '');
+    row.innerHTML = `<span>${p.title || p.name}</span><span class="pv">${p.view}</span>`;
+    row.onclick = () => openPlano(p.name);
+    planosList.appendChild(row);
+  });
+}
+async function fetchPlano(name) {
+  return (await fetch('/plano.svg?name=' + encodeURIComponent(name) + '&t=' + Date.now())).text();
+}
+async function openPlano(name) {
+  if (currentPlano === name) {           // toggle off → back to the model
+    currentPlano = null; planoSvg = '';
+    renderPlanosPanel(); renderCanvas(); fitToView();
+    return;
+  }
+  currentPlano = name;
+  renderPlanosPanel();
+  planoSvg = await fetchPlano(name);
+  renderCanvas();
+  fitToView();
 }
 
 // ── selection / inspector ───────────────────────────────────────────
@@ -666,13 +904,15 @@ document.getElementById('close-ins').onclick = deselect;
 
 // ── data refresh ────────────────────────────────────────────────────
 async function refresh() {
-  const [stateRes, svgRes] = await Promise.all([
-    fetch('/state'), fetch('/preview.svg?t=' + Date.now())
+  const [stateRes, svgRes, svg3dRes] = await Promise.all([
+    fetch('/state'), fetch('/preview.svg?t=' + Date.now()), fetch('/preview3d.svg?t=' + Date.now())
   ]);
   const state = await stateRes.json();
   versionTag.textContent = 'v' + state.version;
   layersInfo = state.layers || [];
+  planosInfo = state.planos || [];
   renderLayerPanel();
+  renderPlanosPanel();
   if (state.error) {
     dot.classList.add('err');
     errBox.textContent = state.error;
@@ -681,6 +921,12 @@ async function refresh() {
     dot.classList.remove('err');
     errBox.classList.remove('show');
     svgText = await svgRes.text();
+    svg3dText = await svg3dRes.text();
+    // The active plano may reference changed geometry — re-render it too.
+    if (currentPlano) {
+      if (planosInfo.some(p => p.name === currentPlano)) planoSvg = await fetchPlano(currentPlano);
+      else { currentPlano = null; planoSvg = ''; }  // plano was removed
+    }
     renderCanvas();
     if (!fitted) fitToView();
   }
@@ -742,6 +988,59 @@ window.addEventListener('keydown', e => {
     if (l) cycleLayer(l.name);
   }
 });
+
+// ── resizable sidebar (width) ───────────────────────────────────────
+(function () {
+  const sidebar = document.getElementById('sidebar');
+  const rz = document.getElementById('layers-resizer');
+  const KEY = 'cadforge.layersWidth', MIN = 130, MAX = 560, DEF = 200;
+  const saved = parseInt(localStorage.getItem(KEY) || '', 10);
+  if (saved >= MIN && saved <= MAX) sidebar.style.width = saved + 'px';
+  let dragging = false;
+  rz.addEventListener('mousedown', e => {
+    dragging = true; rz.classList.add('dragging');
+    document.body.style.cursor = 'col-resize'; e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const w = Math.min(MAX, Math.max(MIN, e.clientX - sidebar.getBoundingClientRect().left));
+    sidebar.style.width = w + 'px';
+  });
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false; rz.classList.remove('dragging'); document.body.style.cursor = '';
+    localStorage.setItem(KEY, parseInt(sidebar.style.width, 10));
+  });
+  rz.addEventListener('dblclick', () => {
+    sidebar.style.width = DEF + 'px'; localStorage.removeItem(KEY);
+  });
+})();
+
+// ── stacked panes: drag the Layers/Planos divider (height) ──────────
+(function () {
+  const sidebar = document.getElementById('sidebar');
+  const pane = document.getElementById('planos-pane');
+  const div = document.getElementById('pane-divider');
+  const KEY = 'cadforge.planosHeight';
+  const saved = parseInt(localStorage.getItem(KEY) || '', 10);
+  if (saved >= 48) pane.style.height = saved + 'px';
+  let dragging = false;
+  div.addEventListener('mousedown', e => {
+    dragging = true; div.classList.add('dragging');
+    document.body.style.cursor = 'row-resize'; e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const r = sidebar.getBoundingClientRect();
+    const h = Math.min(r.height - 60, Math.max(48, r.bottom - e.clientY));
+    pane.style.height = h + 'px';
+  });
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false; div.classList.remove('dragging'); document.body.style.cursor = '';
+    localStorage.setItem(KEY, parseInt(pane.style.height, 10));
+  });
+})();
 
 const events = new EventSource('/events');
 events.onmessage = refresh;

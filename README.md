@@ -94,7 +94,7 @@ complete CLI reference.
 
 ### 🏗️ Project Management
 
-- **Project Scaffolding** — `cadforge new` creates a complete multi-layer project (muros, puertas, mobiliario, cotas) with meaningful architectural examples.
+- **Project Scaffolding** — `cadforge new` creates a multi-layer starter project (shapes, curves, annotations) that showcases the core `.cf` primitives.
 - **Multi-Layer Compilation** — Compile all layers or target specific layers with `--layer`. Custom output path with `--output`.
 - **Auto-Rebuild** — `cadforge watch` monitors `.cf` and `.toml` files and auto-rebuilds DXF on changes with 300ms debounce.
 - **Code Formatting** — `cadforge fmt` normalizes `.cf` files. `--check` mode for CI validation.

@@ -7,6 +7,9 @@
 //! the image.
 
 use crate::model::CfFile;
+use crate::parser::parse_project;
+use crate::planos::render_plano;
+use crate::render3d::render_scene_3d;
 use crate::svg::{
     enumerate_entities, layer_display_color, load_project_layers, render_scene_from, Scene,
 };
@@ -70,6 +73,15 @@ pub struct PreviewOutputs {
     pub svg: bool,
 }
 
+/// Which projection to render.
+#[derive(Clone, Copy, PartialEq)]
+pub enum PreviewView {
+    /// Flat 2D plan (the default).
+    Plan,
+    /// Extruded axonometric 3D view.
+    ThreeD,
+}
+
 /// Generate preview artifacts (PNG + metadata JSON, and/or SVG) for the project.
 ///
 /// Everything is produced from a single parse + render pass.
@@ -82,7 +94,11 @@ pub fn generate_preview(
     layer_filter: Option<&str>,
     highlight: &[String],
     outputs: PreviewOutputs,
+    view: PreviewView,
 ) -> Result<()> {
+    if view == PreviewView::ThreeD {
+        return generate_preview_3d(project_dir, width, height, layer_filter, outputs);
+    }
     let (project, layers) = load_project_layers(project_dir, layer_filter)?;
     let scene = render_scene_from(
         &project.project.name,
@@ -131,6 +147,88 @@ pub fn generate_preview(
         pixmap.height()
     );
     println!("✓ Metadata: {}", json_path.display());
+    Ok(())
+}
+
+/// Render the extruded 3D view. Geometry is projected axonometrically, so there
+/// is no world→pixel mapping to emit — we write the PNG (and optional SVG) only.
+fn generate_preview_3d(
+    project_dir: &Path,
+    width: u32,
+    height: u32,
+    layer_filter: Option<&str>,
+    outputs: PreviewOutputs,
+) -> Result<()> {
+    let (_project, layers) = load_project_layers(project_dir, layer_filter)?;
+    let scene = render_scene_3d(&layers, width);
+
+    if outputs.svg {
+        let svg_path = project_dir.join("preview.svg");
+        std::fs::write(&svg_path, &scene.svg)
+            .with_context(|| format!("Cannot write {}", svg_path.display()))?;
+        println!("✓ SVG (3D): {}", svg_path.display());
+    }
+
+    if !outputs.png {
+        return Ok(());
+    }
+
+    let fit = (height as f64 / scene.height_px).min(1.0);
+    let pixmap = rasterize(&scene.svg, fit as f32)?;
+    let png_path = project_dir.join("preview.png");
+    pixmap
+        .save_png(&png_path)
+        .map_err(|e| anyhow::anyhow!("Failed to save PNG: {}", e))?;
+    println!(
+        "✓ Preview (3D): {} ({}x{})",
+        png_path.display(),
+        pixmap.width(),
+        pixmap.height()
+    );
+    Ok(())
+}
+
+/// Render a named plano (drawing sheet) to `preview.png` (and/or `preview.svg`).
+pub fn generate_plano(
+    project_dir: &Path,
+    name: &str,
+    width: u32,
+    height: u32,
+    outputs: PreviewOutputs,
+) -> Result<()> {
+    let project = parse_project(&project_dir.join("project.toml"))?;
+    let plano = project
+        .planos
+        .iter()
+        .find(|p| p.name == name)
+        .ok_or_else(|| {
+            let names: Vec<&str> = project.planos.iter().map(|p| p.name.as_str()).collect();
+            anyhow::anyhow!("no plano named '{}' (have: {})", name, names.join(", "))
+        })?;
+    let sheet = render_plano(project_dir, plano, width)?;
+
+    if outputs.svg {
+        let svg_path = project_dir.join("preview.svg");
+        std::fs::write(&svg_path, &sheet.svg)
+            .with_context(|| format!("Cannot write {}", svg_path.display()))?;
+        println!("✓ SVG (plano '{}'): {}", name, svg_path.display());
+    }
+    if !outputs.png {
+        return Ok(());
+    }
+    let fit = (height as f64 / sheet.height_px).min(1.0);
+    let pixmap = rasterize(&sheet.svg, fit as f32)?;
+    let png_path = project_dir.join("preview.png");
+    pixmap
+        .save_png(&png_path)
+        .map_err(|e| anyhow::anyhow!("Failed to save PNG: {}", e))?;
+    println!(
+        "✓ Preview (plano '{}'): {} ({}x{})",
+        name,
+        png_path.display(),
+        pixmap.width(),
+        pixmap.height()
+    );
     Ok(())
 }
 

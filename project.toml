@@ -1,0 +1,20 @@
+
+[[plano]]
+name = "P-01"
+view = "iso"
+size = [420.0, 297.0]
+scale = "1:50"
+title = "Vista isometrica"
+
+[[plano]]
+name = "P-02"
+view = "front"
+title = "Alzado frontal"
+
+[[plano]]
+name = "P-03"
+view = "section"
+cut_axis = "z"
+cut_at = 1.5
+keep = "min"
+title = "Corte horizontal z=1.5"

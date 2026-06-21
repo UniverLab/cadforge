@@ -387,6 +387,7 @@ offset = -0.6
             png: true,
             svg: true,
         },
+        cadforge::preview::PreviewView::Plan,
     )
     .unwrap();
 

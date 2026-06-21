@@ -15,6 +15,11 @@ pub struct CommonAttrs {
     pub visible: bool,
     #[serde(default)]
     pub locked: bool,
+    /// Extrusion height in world units for the 3D view. `None`/0 stays flat;
+    /// a closed shape becomes a solid, a line/open polyline becomes a wall.
+    pub extrude: Option<f64>,
+    /// Base elevation (Z) for the 3D view. Defaults to 0 (the ground plane).
+    pub elevation: Option<f64>,
 }
 
 fn default_true() -> bool {
@@ -220,6 +225,41 @@ pub struct CfFill {
     pub common: CommonAttrs,
 }
 
+// ── 3D solids (CSG) ────────────────────────────────────────────────────
+
+/// A named 3D primitive solid for the extruded/CSG view. Referenced by id from
+/// `[[boolean]]`. 3D-only — solids do not appear in the 2D plan or DXF.
+#[derive(Debug, Clone, Deserialize)]
+pub struct CfSolid {
+    pub id: String,
+    /// `box` | `cylinder`.
+    pub shape: String,
+    /// Placement: box minimum corner, or cylinder base-circle center. Default origin.
+    pub at: Option<[f64; 3]>,
+    /// Box dimensions [sx, sy, sz].
+    pub size: Option<[f64; 3]>,
+    /// Cylinder radius.
+    pub radius: Option<f64>,
+    /// Cylinder height.
+    pub height: Option<f64>,
+    /// Cylinder facet count (default 40).
+    pub segments: Option<usize>,
+    pub color: Option<String>,
+}
+
+/// A CSG operation combining named solids. The result is rendered; the solids
+/// it consumes (`base` + `tools`) are not drawn on their own.
+#[derive(Debug, Clone, Deserialize)]
+pub struct CfBoolean {
+    pub id: Option<String>,
+    /// `difference` | `union` | `intersection`.
+    pub op: String,
+    pub base: String,
+    #[serde(default)]
+    pub tools: Vec<String>,
+    pub color: Option<String>,
+}
+
 // ── Layer-level metadata ───────────────────────────────────────────────
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -265,4 +305,8 @@ pub struct CfFile {
     pub arrays: Vec<CfArray>,
     #[serde(default, rename = "mirror")]
     pub mirrors: Vec<CfMirror>,
+    #[serde(default, rename = "solid")]
+    pub solids: Vec<CfSolid>,
+    #[serde(default, rename = "boolean")]
+    pub booleans: Vec<CfBoolean>,
 }

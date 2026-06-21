@@ -7,6 +7,7 @@ pub mod compiler;
 pub mod config;
 pub mod dxf_writer;
 pub mod fmt;
+pub mod gltf;
 pub mod importer;
 pub mod mesh;
 pub mod model;

@@ -255,16 +255,10 @@ struct Footprint<'a> {
     common: &'a CommonAttrs,
 }
 
-fn collect_layer_faces(
-    faces: &mut Vec<Face>,
-    layer_name: &str,
-    cf: &CfFile,
-    layer_color: &str,
-    cam: &Camera,
-    cut: Option<&Cut>,
-) {
+/// Every primitive's 2D footprint in a layer (rects, polylines, lines, circles,
+/// arcs) — the input to extrusion and outlining.
+fn footprints(cf: &CfFile) -> Vec<Footprint<'_>> {
     let mut prints: Vec<Footprint> = Vec::new();
-
     for e in &cf.rects {
         let [ox, oy] = e.origin;
         prints.push(Footprint {
@@ -309,8 +303,101 @@ fn collect_layer_faces(
             common: &e.common,
         });
     }
+    prints
+}
 
-    for fp in prints {
+/// World-space solid meshes for the whole scene — extruded footprints plus
+/// resolved solids/booleans, each with its display colour. This is the same
+/// geometry the 3D view renders (same builders), but unprojected and unsectioned,
+/// so it can be exported to a mesh format like glTF.
+pub fn scene_meshes(layers: &[(String, CfFile)]) -> Vec<(mesh::Mesh, String)> {
+    use std::collections::{HashMap, HashSet};
+    let mut out: Vec<(mesh::Mesh, String)> = Vec::new();
+
+    for (idx, (_name, cf)) in layers.iter().enumerate() {
+        let visible = cf.layer_meta.as_ref().map(|m| m.visible).unwrap_or(true);
+        if !visible {
+            continue;
+        }
+        let layer_color = layer_display_color(cf, idx);
+
+        // Extruded footprints → prism/wall meshes.
+        for fp in footprints(cf) {
+            if fp.points.len() < 2 {
+                continue;
+            }
+            let h = fp.common.extrude.unwrap_or(0.0);
+            if h <= 0.0 {
+                continue;
+            }
+            let base = fp.common.elevation.unwrap_or(0.0);
+            let color = fp
+                .common
+                .color
+                .clone()
+                .unwrap_or_else(|| layer_color.clone());
+            out.push((mesh::prism(&fp.points, base, h, fp.closed), color));
+        }
+
+        // Solids + booleans (mirrors collect_solid_faces, without projection).
+        let mut meshes: HashMap<&str, mesh::Mesh> = HashMap::new();
+        let mut colors: HashMap<&str, String> = HashMap::new();
+        for s in &cf.solids {
+            meshes.insert(s.id.as_str(), build_solid(s));
+            colors.insert(
+                s.id.as_str(),
+                s.color.clone().unwrap_or_else(|| layer_color.clone()),
+            );
+        }
+        let mut consumed: HashSet<&str> = HashSet::new();
+        for b in &cf.booleans {
+            consumed.insert(b.base.as_str());
+            for t in &b.tools {
+                consumed.insert(t.as_str());
+            }
+        }
+        for b in &cf.booleans {
+            let Some(base) = meshes.get(b.base.as_str()) else {
+                continue;
+            };
+            let mut acc = base.clone();
+            for t in &b.tools {
+                if let Some(tool) = meshes.get(t.as_str()) {
+                    acc = match b.op.as_str() {
+                        "union" => acc.union(tool),
+                        "intersection" => acc.intersection(tool),
+                        _ => acc.difference(tool),
+                    };
+                }
+            }
+            let color = b
+                .color
+                .clone()
+                .or_else(|| colors.get(b.base.as_str()).cloned())
+                .unwrap_or_else(|| layer_color.clone());
+            out.push((acc, color));
+        }
+        for s in &cf.solids {
+            if consumed.contains(s.id.as_str()) {
+                continue;
+            }
+            if let (Some(m), Some(c)) = (meshes.get(s.id.as_str()), colors.get(s.id.as_str())) {
+                out.push((m.clone(), c.clone()));
+            }
+        }
+    }
+    out
+}
+
+fn collect_layer_faces(
+    faces: &mut Vec<Face>,
+    layer_name: &str,
+    cf: &CfFile,
+    layer_color: &str,
+    cam: &Camera,
+    cut: Option<&Cut>,
+) {
+    for fp in footprints(cf) {
         if fp.points.len() < 2 {
             continue;
         }

@@ -3,7 +3,9 @@ use cadspec::compiler::{check_project, compile_project, list_layers, project_rep
 use cadspec::config::{config_set, config_show};
 use cadspec::fmt::format_project;
 use cadspec::importer::import_dxf;
-use cadspec::preview::{generate_plano, generate_preview, PreviewOutputs, PreviewView};
+use cadspec::preview::{
+    generate_gltf, generate_plano, generate_preview, PreviewOutputs, PreviewView,
+};
 use cadspec::scaffold::{create_project, init_project};
 use cadspec::schema::print_schema;
 use cadspec::serve::{serve_daemon, serve_project, serve_stop};
@@ -163,6 +165,8 @@ enum PreviewFormat {
     Svg,
     /// Both PNG and SVG
     All,
+    /// Self-contained glTF of the 3D solids (`scene.gltf`)
+    Gltf,
 }
 
 #[derive(Subcommand)]
@@ -236,27 +240,31 @@ fn main() -> Result<()> {
             plano,
         } => {
             let dir = resolve_project_dir(path)?;
-            let outputs = PreviewOutputs {
-                png: matches!(format, PreviewFormat::Png | PreviewFormat::All),
-                svg: matches!(format, PreviewFormat::Svg | PreviewFormat::All),
-            };
-            if let Some(name) = plano {
-                generate_plano(&dir, &name, width, height, outputs)
+            if matches!(format, PreviewFormat::Gltf) {
+                generate_gltf(&dir, layer.as_deref())
             } else {
-                let view = if three_d {
-                    PreviewView::ThreeD
-                } else {
-                    PreviewView::Plan
+                let outputs = PreviewOutputs {
+                    png: matches!(format, PreviewFormat::Png | PreviewFormat::All),
+                    svg: matches!(format, PreviewFormat::Svg | PreviewFormat::All),
                 };
-                generate_preview(
-                    &dir,
-                    width,
-                    height,
-                    layer.as_deref(),
-                    &highlight,
-                    outputs,
-                    view,
-                )
+                if let Some(name) = plano {
+                    generate_plano(&dir, &name, width, height, outputs)
+                } else {
+                    let view = if three_d {
+                        PreviewView::ThreeD
+                    } else {
+                        PreviewView::Plan
+                    };
+                    generate_preview(
+                        &dir,
+                        width,
+                        height,
+                        layer.as_deref(),
+                        &highlight,
+                        outputs,
+                        view,
+                    )
+                }
             }
         }
         Commands::Serve {

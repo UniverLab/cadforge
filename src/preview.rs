@@ -188,6 +188,29 @@ fn generate_preview_3d(
     Ok(())
 }
 
+/// Export the scene's 3D solids to a self-contained glTF (`scene.gltf`) — the
+/// same meshes the 3D view renders, for an interactive viewer or interchange.
+pub fn generate_gltf(project_dir: &Path, layer_filter: Option<&str>) -> Result<()> {
+    let (_project, layers) = load_project_layers(project_dir, layer_filter)?;
+    let meshes = crate::render3d::scene_meshes(&layers);
+    if meshes.is_empty() {
+        anyhow::bail!(
+            "no 3D geometry to export — declare [[solid]]/[[boolean]] or set `extrude` on a primitive"
+        );
+    }
+    let tris: usize = meshes.iter().map(|(m, _)| m.tris.len()).sum();
+    let doc = crate::gltf::scene_to_gltf(&meshes);
+    let out = project_dir.join("scene.gltf");
+    std::fs::write(&out, &doc).with_context(|| format!("Cannot write {}", out.display()))?;
+    println!(
+        "✓ glTF: {} ({} meshes, {} triangles)",
+        out.display(),
+        meshes.len(),
+        tris
+    );
+    Ok(())
+}
+
 /// Render a named plano (drawing sheet) to `preview.png` (and/or `preview.svg`).
 pub fn generate_plano(
     project_dir: &Path,

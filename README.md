@@ -13,7 +13,7 @@
 ```
 
 <p align="center">
-  <a href="https://github.com/UniverLab/cadforge/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/UniverLab/cadforge/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI"/></a>
+  <a href="https://github.com/UniverLab/cadspec/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/UniverLab/cadspec/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI"/></a>
   <a href="https://crates.io/crates/cadspec"><img src="https://img.shields.io/crates/v/cadspec?style=for-the-badge&logo=rust&logoColor=white" alt="Crates.io"/></a>
   <img src="https://img.shields.io/badge/Status-Active-27AE60?style=for-the-badge" alt="Status"/>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-2E8B57?style=for-the-badge" alt="License"/></a>
@@ -23,52 +23,80 @@ cadspec is a **CAD as code** CLI tool and Rust library for declarative CAD model
 
 ---
 
-## Vibecoding CAD
+## Features
 
-The core loop: **describe geometry in TOML, see it instantly, iterate.**
+- **📐 Declarative Geometry** — Define architectural elements (lines, rects, circles, arcs, polylines, text, dimensions) in TOML `.cf` files. Deterministic, reproducible, version-controlled.
+- **🛠️ Construction Tools** — `[[array]]` (linear and polar) and `[[mirror]]` expand into concrete primitives at build time; copies get derived ids.
+- **📏 Styled Dimensions** — Auto-measured labels with configurable `text_size`, `precision`, `show_units`, and `offset`.
+- **🔴 Live Preview** — `cadspec serve` runs a local server with pan/zoom, auto-reload on save (SSE), click-to-inspect, per-layer ghost/hide, 3D view, and build-error overlay.
+- **🔗 Layer System** — Organize geometry by layer with custom names, colors, and line weights.
+- **📄 DXF Export** — Compile `.cf` → DXF (AutoCAD-compatible). Full layer support, LWPOLYLINE, HATCH, MTEXT.
+- **🖼️ Previews for Agents** — Raster PNG + metadata JSON (entity bounding boxes) and full-fidelity SVG with real text, dimensions, line styles, and highlights.
+- **✅ Validation Engine** — `cadspec check` validates geometry and constraints; `--json` for tooling.
+- **🔄 Formatting** — `cadspec fmt` normalizes `.cf` files. `--check` mode for CI.
+- **🔍 DXF Import** — `cadspec import drawing.dxf` migrates existing drawings into `.cf` layers.
+
+---
+
+## Installation
+
+### Quick install (recommended)
+
+**Linux / macOS:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/UniverLab/cadspec/main/scripts/install.sh | sh
+```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/UniverLab/cadspec/main/scripts/install.ps1 | iex
+```
+
+### Via cargo
+
+```bash
+cargo install cadspec
+```
+
+Available on [crates.io](https://crates.io/crates/cadspec).
+
+### From source
+
+```bash
+git clone https://github.com/UniverLab/cadspec.git
+cd cadspec
+cargo build --release
+# Binary at target/release/cadspec
+```
+
+### GitHub Releases
+
+Check the [Releases](https://github.com/UniverLab/cadspec/releases) page for precompiled binaries (Linux x86_64, macOS x86_64/ARM64, Windows x86_64).
+
+### Uninstall
+
+```bash
+rm -f ~/.local/bin/cadspec
+```
+
+---
+
+## Quick Start
 
 ```bash
 cadspec new casa && cd casa
 cadspec serve --open        # live preview in the browser
 ```
 
-Now edit any `.cf` file — by hand or by asking an AI agent — and the browser
-updates on every save. Parse errors and constraint violations appear as an
-overlay instead of a crash. When the design is right, `cadspec build` emits
-a deterministic, AutoCAD-compatible DXF.
-
-Agents get first-class support:
-
-- `cadspec schema` — full `.cf` language reference in one command; agents
-  self-discover the format without prior training.
-- `cadspec check --json` / `cadspec layers --json` — machine-readable
-  validation reports.
-- `cadspec preview` — a faithful PNG render (real text, measured dimension
-  labels, hatches, line styles) + `preview.meta.json` with per-entity bounding
-  boxes in world and pixel coordinates, so multimodal agents can *look* at the
-  plan and locate every entity in the image.
-- `cadspec preview --highlight ln-001,tx-002` — labeled amber markers around
-  specific entities, so an agent can visually confirm its edit landed where
-  intended.
-- `cadspec preview --format svg` — same render as vector SVG.
-
----
-
-## Installation
-
-**Linux / macOS:**
+Edit any `.cf` file — the browser updates on every save. When the design is right:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/UniverLab/cadforge/main/scripts/install.sh | sh
+cadspec build                        # default output.dxf
+cadspec build --output plano.dxf     # custom output path
+cadspec build --layer muros          # compile single layer
 ```
-
-**Windows (PowerShell):**
-
-```powershell
-irm https://raw.githubusercontent.com/UniverLab/cadforge/main/scripts/install.ps1 | iex
-```
-
-Or via cargo: `cargo install cadspec` — see [`docs/installation.md`](docs/installation.md) for all methods.
 
 ## Documentation
 
@@ -78,44 +106,12 @@ complete CLI reference.
 
 ---
 
-
-## Features
-
-### 🎯 Core Platform
-
-- **📐 Declarative Geometry** — Define architectural elements (lines, rects, circles, arcs, polylines, text, dimensions) in TOML `.cf` files. Deterministic, reproducible, version-controlled.
-- **🛠️ Construction Tools** — `[[array]]` (linear and polar: spiral staircases, gear teeth, repeated columns) and `[[mirror]]` expand into concrete primitives at build time; copies get derived ids (`base@1`, `base@m`).
-- **📏 Styled Dimensions** — Auto-measured labels with configurable `text_size`, `precision`, `show_units`, and `offset` per dimension.
-- **🔴 Live Preview** — `cadspec serve` runs a local server with pan/zoom, auto-reload on save (SSE), click-to-inspect any entity (copy its source TOML as an agent prompt), per-layer ghost/hide states, a 3D stacked-layers view, and a build-error overlay. Zero config.
-- **🔗 Layer System** — Organize geometry by layer with custom names, colors, and line weights. Compile single layers or full projects.
-- **📄 DXF Export** — Compile `.cf` → DXF (AutoCAD-compatible). Full layer support, LWPOLYLINE for polylines, HATCH for solid fills, MTEXT for annotations.
-- **🖼️ Previews for Agents** — Raster PNG + metadata JSON (entity bounding boxes) and full-fidelity SVG with real text, auto-measured dimensions, line styles, and clipped hatch patterns.
-- **✅ Validation Engine** — `cadspec check` validates geometry and constraints without generating output; `--json` for tooling.
-
-### 🏗️ Project Management
-
-- **Project Scaffolding** — `cadspec new` creates a multi-layer starter project (shapes, curves, annotations) that showcases the core `.cf` primitives.
-- **Multi-Layer Compilation** — Compile all layers or target specific layers with `--layer`. Custom output path with `--output`.
-- **Auto-Rebuild** — `cadspec watch` monitors `.cf` and `.toml` files and auto-rebuilds DXF on changes with 300ms debounce.
-- **Code Formatting** — `cadspec fmt` normalizes `.cf` files. `--check` mode for CI validation.
-- **Constraints** — `parent`, `belongs_to`, and `spatial_dependency` rules between layers; warnings by default, build-blocking with `strict = true`.
-- **DXF Import** — `cadspec import plano.dxf` migrates existing drawings into `.cf` layers + `project.toml`.
-
-### 🔧 Architecture
-
-- **Compiler Pipeline** — Parse → Resolve → Compile → Emit. Modular design for easy extension.
-- **DXF Writer** — Direct DXF entity writing with proper AutoCAD compatibility. Layer/color/lineweight mapping.
-- **Renderer** — One handwritten SVG backend; the PNG preview rasterizes it via resvg with an embedded monospace font (deterministic text on any machine, including fontless containers).
-- **Error Reporting** — Structured errors with file, line, and context. Fast-fail on validation errors.
-
----
-
 ## Commands
 
 | Command | Description |
 |---------|-------------|
 | `cadspec new <name>` | Create a new project with multi-layer scaffold |
-| `cadspec init` | Initialize CADspec in current directory |
+| `cadspec init` | Initialize cadspec in current directory |
 | `cadspec build` | Compile project to DXF |
 | `cadspec build --check` | Validate project and constraints without generating DXF |
 | `cadspec build --output <path>` | Compile to custom output path |
@@ -235,24 +231,6 @@ Run `cadspec schema` for the complete reference with all attributes.
 
 ---
 
-## Main Modules
-
-- `compiler/` — Project compilation pipeline, layer targeting, validation, JSON reports
-- `dxf_writer/` — DXF entity writing, LWPOLYLINE, HATCH, MTEXT generation
-- `preview/` — PNG rendering with configurable resolution, layer filtering, metadata JSON
-- `svg/` — Vector SVG rendering: real text, measured dimensions, hatch clipping, grid
-- `serve/` — Live preview server: file watcher + SSE auto-reload + error overlay
-- `schema/` — Embedded `.cf` language reference for humans and agents
-- `parser/` — TOML parsing, primitive extraction, array-of-tables handling
-- `model/` — Data structures: Layer, Primitive, Project
-- `scaffold/` — Multi-layer project creation with architectural examples
-- `fmt/` — .cf file formatting and normalization
-- `watch/` — File system watcher with auto-rebuild and debounce
-- `importer/` — DXF → `.cf` migration
-- `color/` — Color parsing and DXF color mapping
-
----
-
 ## Data Storage
 
 | Data | Location | Format |
@@ -265,51 +243,16 @@ Run `cadspec schema` for the complete reference with all attributes.
 
 ---
 
-## Usage
-
-**Create a new project:**
-```bash
-cadspec new mi-proyecto
-cd mi-proyecto
-```
-
-**Live preview while you edit:**
-```bash
-cadspec serve --open    # browser refreshes on every save
-```
-
-**Edit `.cf` files** (TOML format with your geometry — run `cadspec schema` for the reference)
-
-**Format and validate:**
-```bash
-cadspec fmt           # normalize .cf files
-cadspec check         # validate without generating DXF
-```
-
-**Compile to DXF:**
-```bash
-cadspec build                        # default output.dxf
-cadspec build --output plano.dxf     # custom output path
-cadspec build --layer muros          # compile single layer
-```
-
-**Preview:**
-```bash
-cadspec preview                          # default 1600x1200 (fits content aspect)
-cadspec preview --width 1024 --height 768  # custom resolution
-cadspec preview --layer muros            # single layer preview
-```
-
-**Auto-rebuild on changes:**
-```bash
-cadspec watch       # monitors .cf and .toml files
-```
-
----
-
 ## Tech Stack
 
-| Rust 2021 | clap | toml | toml_edit | resvg | dxf | notify | anyhow | serde |
+| Concern | Crate |
+|---|---|
+| CLI parsing | `clap` (derive) |
+| Error handling | `anyhow` |
+| Serialization | `serde` + `toml` + `toml_edit` |
+| DXF output | `dxf` |
+| File watching | `notify` |
+| PNG rasterization | `resvg` |
 
 ---
 

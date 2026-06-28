@@ -340,25 +340,46 @@ fn remove_dim_companions(entities: &mut Vec<Imported>) {
         let mid = [(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0];
 
         for (cf, ct) in [(from, a), (to, b), (a, b)] {
-            if let Some(i) = (0..entities.len()).find(|&i| {
-                keep[i]
-                    && matches!(entities[i].shape, Shape::Line { from: lf, to: lt }
-                        if (close(lf, cf) && close(lt, ct)) || (close(lf, ct) && close(lt, cf)))
-            }) {
-                keep[i] = false;
-            }
+            mark_line_companion(entities, &mut keep, cf, ct, close);
         }
-        if let Some(i) = (0..entities.len()).find(|&i| {
-            keep[i]
-                && matches!(entities[i].shape, Shape::Text { position, size, .. }
-                    if close(position, [mid[0] + nx * size * 0.5, mid[1] + ny * size * 0.5]))
-        }) {
-            keep[i] = false;
-        }
+        mark_text_companion(entities, &mut keep, mid, nx, ny, close);
     }
 
     let mut it = keep.into_iter();
     entities.retain(|_| it.next().unwrap_or(true));
+}
+
+fn mark_line_companion(
+    entities: &[Imported],
+    keep: &mut [bool],
+    from: [f64; 2],
+    to: [f64; 2],
+    close: impl Fn([f64; 2], [f64; 2]) -> bool,
+) {
+    if let Some(i) = (0..entities.len()).find(|&i| {
+        keep[i]
+            && matches!(entities[i].shape, Shape::Line { from: lf, to: lt }
+                if (close(lf, from) && close(lt, to)) || (close(lf, to) && close(lt, from)))
+    }) {
+        keep[i] = false;
+    }
+}
+
+fn mark_text_companion(
+    entities: &[Imported],
+    keep: &mut [bool],
+    mid: [f64; 2],
+    nx: f64,
+    ny: f64,
+    close: impl Fn([f64; 2], [f64; 2]) -> bool,
+) {
+    if let Some(i) = (0..entities.len()).find(|&i| {
+        keep[i]
+            && matches!(entities[i].shape, Shape::Text { position, size, .. }
+                if close(position, [mid[0] + nx * size * 0.5, mid[1] + ny * size * 0.5]))
+    }) {
+        keep[i] = false;
+    }
 }
 
 /// Render a shape body (without `[[header]]`/`id`); returns (id prefix, body).

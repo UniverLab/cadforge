@@ -311,7 +311,6 @@ fn footprints(cf: &CfFile) -> Vec<Footprint<'_>> {
 /// geometry the 3D view renders (same builders), but unprojected and unsectioned,
 /// so it can be exported to a mesh format like glTF.
 pub fn scene_meshes(layers: &[(String, CfFile)]) -> Vec<(mesh::Mesh, String)> {
-    use std::collections::{HashMap, HashSet};
     let mut out: Vec<(mesh::Mesh, String)> = Vec::new();
 
     for (idx, (_name, cf)) in layers.iter().enumerate() {
@@ -340,51 +339,8 @@ pub fn scene_meshes(layers: &[(String, CfFile)]) -> Vec<(mesh::Mesh, String)> {
         }
 
         // Solids + booleans (mirrors collect_solid_faces, without projection).
-        let mut meshes: HashMap<&str, mesh::Mesh> = HashMap::new();
-        let mut colors: HashMap<&str, String> = HashMap::new();
-        for s in &cf.solids {
-            meshes.insert(s.id.as_str(), build_solid(s));
-            colors.insert(
-                s.id.as_str(),
-                s.color.clone().unwrap_or_else(|| layer_color.clone()),
-            );
-        }
-        let mut consumed: HashSet<&str> = HashSet::new();
-        for b in &cf.booleans {
-            consumed.insert(b.base.as_str());
-            for t in &b.tools {
-                consumed.insert(t.as_str());
-            }
-        }
-        for b in &cf.booleans {
-            let Some(base) = meshes.get(b.base.as_str()) else {
-                continue;
-            };
-            let mut acc = base.clone();
-            for t in &b.tools {
-                if let Some(tool) = meshes.get(t.as_str()) {
-                    acc = match b.op.as_str() {
-                        "union" => acc.union(tool),
-                        "intersection" => acc.intersection(tool),
-                        _ => acc.difference(tool),
-                    };
-                }
-            }
-            let color = b
-                .color
-                .clone()
-                .or_else(|| colors.get(b.base.as_str()).cloned())
-                .unwrap_or_else(|| layer_color.clone());
-            out.push((acc, color));
-        }
-        for s in &cf.solids {
-            if consumed.contains(s.id.as_str()) {
-                continue;
-            }
-            if let (Some(m), Some(c)) = (meshes.get(s.id.as_str()), colors.get(s.id.as_str())) {
-                out.push((m.clone(), c.clone()));
-            }
-        }
+        let resolved = resolve_booleans(cf, &layer_color);
+        out.extend(resolved.into_iter().map(|(m, c, _id)| (m, c)));
     }
     out
 }
@@ -432,16 +388,9 @@ fn apply_cut(m: mesh::Mesh, cut: Option<&Cut>) -> mesh::Mesh {
     }
 }
 
-/// Build the named [`mesh`] solids, apply each `[[boolean]]`, and emit the
-/// results. Solids consumed by a boolean are not drawn on their own.
-fn collect_solid_faces(
-    faces: &mut Vec<Face>,
-    layer_name: &str,
-    cf: &CfFile,
-    layer_color: &str,
-    cam: &Camera,
-    cut: Option<&Cut>,
-) {
+/// Build named solids, apply boolean operations, return resolved meshes with colors and IDs.
+/// Used by both `scene_meshes` (glTF export) and `collect_solid_faces` (SVG render).
+fn resolve_booleans(cf: &CfFile, layer_color: &str) -> Vec<(mesh::Mesh, String, Option<String>)> {
     use std::collections::{HashMap, HashSet};
 
     let mut meshes: HashMap<&str, mesh::Mesh> = HashMap::new();
@@ -462,9 +411,10 @@ fn collect_solid_faces(
         }
     }
 
+    let mut out = Vec::new();
     for b in &cf.booleans {
         let Some(base) = meshes.get(b.base.as_str()) else {
-            continue; // unknown base — skip rather than fail the whole render
+            continue;
         };
         let mut acc = base.clone();
         for t in &b.tools {
@@ -472,7 +422,7 @@ fn collect_solid_faces(
                 acc = match b.op.as_str() {
                     "union" => acc.union(tool),
                     "intersection" => acc.intersection(tool),
-                    _ => acc.difference(tool), // default: difference (cut)
+                    _ => acc.difference(tool),
                 };
             }
         }
@@ -481,24 +431,31 @@ fn collect_solid_faces(
             .clone()
             .or_else(|| colors.get(b.base.as_str()).cloned())
             .unwrap_or_else(|| layer_color.to_string());
-        emit_mesh(faces, &apply_cut(acc, cut), &color, layer_name, &b.id, cam);
+        out.push((acc, color, b.id.clone()));
     }
-
     for s in &cf.solids {
         if consumed.contains(s.id.as_str()) {
             continue;
         }
-        let (Some(m), Some(c)) = (meshes.get(s.id.as_str()), colors.get(s.id.as_str())) else {
-            continue;
-        };
-        emit_mesh(
-            faces,
-            &apply_cut(m.clone(), cut),
-            c,
-            layer_name,
-            &Some(s.id.clone()),
-            cam,
-        );
+        if let (Some(m), Some(c)) = (meshes.get(s.id.as_str()), colors.get(s.id.as_str())) {
+            out.push((m.clone(), c.clone(), Some(s.id.clone())));
+        }
+    }
+    out
+}
+
+/// Build the named [`mesh`] solids, apply each `[[boolean]]`, and emit the
+/// results. Solids consumed by a boolean are not drawn on their own.
+fn collect_solid_faces(
+    faces: &mut Vec<Face>,
+    layer_name: &str,
+    cf: &CfFile,
+    layer_color: &str,
+    cam: &Camera,
+    cut: Option<&Cut>,
+) {
+    for (mesh, color, id) in resolve_booleans(cf, layer_color) {
+        emit_mesh(faces, &apply_cut(mesh, cut), &color, layer_name, &id, cam);
     }
 }
 

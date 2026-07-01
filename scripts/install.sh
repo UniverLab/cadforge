@@ -1,9 +1,9 @@
 #!/bin/sh
 # install.sh — download and install cadspec from GitHub Releases
-# Usage: curl -fsSL https://raw.githubusercontent.com/UniverLab/cadforge/main/scripts/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/UniverLab/cadspec/main/scripts/install.sh | sh
 set -eu
 
-REPO="UniverLab/cadforge"
+REPO="UniverLab/cadspec"
 BINARY="cadspec"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 

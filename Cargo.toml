@@ -4,8 +4,8 @@ version = "0.1.0-beta.2"
 edition = "2021"
 description = "CAD as code — deterministic geometry engine for reproducible CAD drawings"
 license = "MIT"
-homepage = "https://github.com/UniverLab/cadforge"
-repository = "https://github.com/UniverLab/cadforge"
+homepage = "https://github.com/UniverLab/cadspec"
+repository = "https://github.com/UniverLab/cadspec"
 publish = true
 exclude = ["crates/**"]
 

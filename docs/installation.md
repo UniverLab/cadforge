@@ -14,13 +14,13 @@ order: 2
 **Linux / macOS:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/UniverLab/cadforge/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/UniverLab/cadspec/main/scripts/install.sh | sh
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-irm https://raw.githubusercontent.com/UniverLab/cadforge/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/UniverLab/cadspec/main/scripts/install.ps1 | iex
 ```
 
 ## Via cargo
@@ -34,7 +34,7 @@ Available on [crates.io](https://crates.io/crates/cadspec).
 ## From source
 
 ```bash
-git clone https://github.com/UniverLab/cadforge.git
+git clone https://github.com/UniverLab/cadspec.git
 cd cadspec
 cargo build --release
 # Binary at target/release/cadspec

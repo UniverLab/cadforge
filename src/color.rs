@@ -1,19 +1,41 @@
 //! Color and weight conversion utilities for DXF output.
 
-/// ACI color index from hex string (best-effort mapping to standard palette).
+/// Standard ACI palette (indices 1-9) as RGB triples.
+const ACI_PALETTE: [(u8, (u8, u8, u8)); 9] = [
+    (1, (0xFF, 0x00, 0x00)), // red
+    (2, (0xFF, 0xFF, 0x00)), // yellow
+    (3, (0x00, 0xFF, 0x00)), // green
+    (4, (0x00, 0xFF, 0xFF)), // cyan
+    (5, (0x00, 0x00, 0xFF)), // blue
+    (6, (0xFF, 0x00, 0xFF)), // magenta
+    (7, (0xFF, 0xFF, 0xFF)), // white
+    (8, (0x80, 0x80, 0x80)), // dark grey
+    (9, (0xC0, 0xC0, 0xC0)), // light grey
+];
+
+/// ACI color index from hex string: nearest color in the standard palette
+/// (unparseable input falls back to 7, white).
 pub fn hex_to_aci(hex: &str) -> u8 {
-    match hex.to_uppercase().trim_start_matches('#') {
-        "FF0000" => 1, // red
-        "FFFF00" => 2, // yellow
-        "00FF00" => 3, // green
-        "00FFFF" => 4, // cyan
-        "0000FF" => 5, // blue
-        "FF00FF" => 6, // magenta
-        "FFFFFF" => 7, // white
-        "808080" => 8, // dark grey
-        "C0C0C0" => 9, // light grey
-        _ => 7,        // default white
+    let hex = hex.trim_start_matches('#');
+    let Ok(rgb) = u32::from_str_radix(hex, 16) else {
+        return 7;
+    };
+    if hex.len() != 6 {
+        return 7;
     }
+    let (r, g, b) = (
+        (rgb >> 16) as i32,
+        ((rgb >> 8) & 0xFF) as i32,
+        (rgb & 0xFF) as i32,
+    );
+    ACI_PALETTE
+        .iter()
+        .min_by_key(|(_, (pr, pg, pb))| {
+            let (dr, dg, db) = (r - *pr as i32, g - *pg as i32, b - *pb as i32);
+            dr * dr + dg * dg + db * db
+        })
+        .map(|(index, _)| *index)
+        .unwrap_or(7)
 }
 
 /// Hex color from an ACI color index (inverse of `hex_to_aci`).
@@ -52,7 +74,16 @@ mod tests {
         assert_eq!(hex_to_aci("#FF0000"), 1);
         assert_eq!(hex_to_aci("#00FF00"), 3);
         assert_eq!(hex_to_aci("#FFFFFF"), 7);
-        assert_eq!(hex_to_aci("#123456"), 7); // unknown → white
+    }
+
+    #[test]
+    fn hex_to_aci_maps_arbitrary_colors_to_nearest() {
+        assert_eq!(hex_to_aci("#FF4444"), 1); // reddish → red
+        assert_eq!(hex_to_aci("#00CC44"), 3); // greenish → green
+        assert_eq!(hex_to_aci("#2244CC"), 5); // bluish → blue
+        assert_eq!(hex_to_aci("#123456"), 8); // dark muted → dark grey
+        assert_eq!(hex_to_aci("#invalid"), 7); // unparseable → white
+        assert_eq!(hex_to_aci("#FFF"), 7); // wrong length → white
     }
 
     #[test]

@@ -333,11 +333,15 @@ pub fn compile_project(
     let project = parse_project(&project_dir.join("project.toml"))?;
     let mut writer = DxfWriter::new();
 
-    for name in project.layers.keys() {
-        writer.add_layer(name, 7);
-    }
-
     let loaded_layers = load_layers(project_dir, &project.layers)?;
+    for name in project.layers.keys() {
+        let color = loaded_layers
+            .get(name)
+            .and_then(|cf| cf.layer_meta.as_ref())
+            .and_then(|meta| meta.color.as_deref())
+            .unwrap_or("#FFFFFF");
+        writer.add_layer(name, hex_to_aci(color));
+    }
     let issues = validate_constraints(&project, &loaded_layers);
     let strict = is_strict(&project);
     if !issues.is_empty() {

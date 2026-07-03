@@ -51,7 +51,13 @@ impl DxfWriter {
     }
 
     /// Add a named layer with an ACI color index (1-255).
+    /// Re-adding an existing layer updates its color instead of duplicating
+    /// the LAYER table record.
     pub fn add_layer(&mut self, name: &str, color_index: u8) {
+        if let Some(existing) = self.drawing.layers_mut().find(|l| l.name == name) {
+            existing.color = Color::from_index(color_index);
+            return;
+        }
         let layer = Layer {
             name: name.to_string(),
             color: Color::from_index(color_index),

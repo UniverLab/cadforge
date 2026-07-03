@@ -442,7 +442,7 @@ fn import_roundtrip_recovers_dims_styles_and_colors() {
         dir.join("plano.cf"),
         r##"[layer]
 name = "plano"
-color = "#FF0000"
+color = "#FF4444"
 
 [[line]]
 id = "ln-base"
@@ -476,12 +476,22 @@ offset = -1.2
     let dxf_path = dir.join("output.dxf");
     compile_project(dir, None, Some(&dxf_path)).unwrap();
 
+    // Each layer appears exactly once in the DXF LAYER table ('0' + 'plano'),
+    // and 'plano' carries its ACI color instead of the default white.
+    let dxf_text = fs::read_to_string(&dxf_path).unwrap();
+    assert_eq!(
+        dxf_text.matches("AcDbLayerTableRecord").count(),
+        2,
+        "duplicate LAYER table records"
+    );
+
     let imported = Path::new("/tmp/cadspec_roundtrip_fidelity_out");
     let _ = fs::remove_dir_all(imported);
     import_dxf(&dxf_path, imported, None).unwrap();
     let cf = fs::read_to_string(imported.join("plano.cf")).unwrap();
 
-    // Layer color survives via the DXF layer table (ACI)
+    // Layer color survives via the DXF layer table (ACI): #FF4444 is not in
+    // the standard palette, so it comes back as the nearest ACI color (red).
     assert!(
         cf.contains("color = \"#FF0000\""),
         "layer color lost:\n{cf}"

@@ -373,14 +373,14 @@ pub fn compile_project(
         .unwrap_or_else(|| project_dir.join("output.dxf"));
     writer.save(&output_path)?;
 
-    println!("✓ DXF generado: {}", output_path.display());
+    println!("✓ DXF generated: {}", output_path.display());
     println!(
-        "  {} entidades en {} capas",
+        "  {} entities in {} layers",
         total_entities,
         layer_stats.len()
     );
     for (name, count) in &layer_stats {
-        println!("    {}: {} entidades", name, count);
+        println!("    {}: {} entities", name, count);
     }
     Ok(())
 }

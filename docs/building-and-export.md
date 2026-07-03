@@ -20,6 +20,38 @@ DXF. Export uses proper AutoCAD-compatible entities — LWPOLYLINE for
 polylines, HATCH for solid fills, MTEXT for annotations — with full
 layer/color/lineweight mapping.
 
+## Drawing sheets (planos)
+
+A *plano* is a named view of the model rendered onto a paper-sized sheet
+with a frame and a title block (rótulo). Declare sheets in `project.toml`
+and render them with `cadspec preview --plano <name>`:
+
+```toml
+[[plano]]
+name = "general"
+view = "plan"            # plan | iso | front | back | left | right | top | section
+scale = "1:100"          # label shown in the title block
+size = [420.0, 297.0]    # paper size in mm (default A3 landscape)
+title = "Planta general" # defaults to the plano name
+
+[[plano]]
+name = "corte-a"
+view = "section"
+cut_axis = "x"           # section only: x | y | z
+cut_at = 4.0             # position of the cut plane along cut_axis
+keep = "min"             # which side to keep: min (default) | max
+```
+
+```bash
+cadspec preview --plano general              # render one sheet
+cadspec preview --plano corte-a --format svg
+```
+
+The title block is generated from the project metadata; set `rotulo =
+"titleblock.cf"` on a plano to draw a custom one with the same `.cf`
+primitives as the rest of the drawing. The live preview (`cadspec
+serve`) lists all declared planos in a panel.
+
 ## Validation
 
 ```bash

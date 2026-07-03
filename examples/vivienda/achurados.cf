@@ -17,9 +17,11 @@ scale = 2.0
 angle = 45.0
 
 # ── Relleno solido del closet dormitorio 1 ─────────────────
+# Coincide con el rect rc-closet-d1 de muros.cf (origen [0,7], 1.2 x 2.0).
+# Se usan puntos en linea porque los boundary se resuelven por archivo de capa.
 [[fill]]
 id = "fl-closet-d1"
-boundary = "rc-closet-d1"
+points = [[0.0, 7.0], [1.2, 7.0], [1.2, 9.0], [0.0, 9.0]]
 color = "#E0E0E0"
 
 # ── Achurado de la cocina ───────────────────────────────────

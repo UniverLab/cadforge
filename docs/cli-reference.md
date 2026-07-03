@@ -26,15 +26,19 @@ cadspec <command> [options]
 
 | Command | Description |
 |---------|-------------|
-| `cadspec serve` | Live preview server — browser auto-reloads on save |
+| `cadspec serve` | Live preview server (background) — browser auto-reloads on save |
 | `cadspec serve --open --port <p>` | Open browser automatically on a custom port |
+| `cadspec serve --foreground` | Stay attached: stream logs, stop with Ctrl+C |
+| `cadspec serve --stop` | Stop the background server running for this project |
 | `cadspec preview` | Faithful PNG render + `preview.meta.json` |
 | `cadspec preview --format svg` | Vector SVG preview (same renderer) |
+| `cadspec preview --format all` | Both PNG and SVG in one pass |
 | `cadspec preview --3d` | Axonometric 3D view (extrusions + solids) |
 | `cadspec preview --format gltf` | Export the 3D solids to `scene.gltf` (interactive 3D / interchange) |
 | `cadspec preview --highlight <ids>` | Amber markers around specific entities |
 | `cadspec preview --width <w> -H <h>` | Custom resolution |
 | `cadspec preview --layer <name>` | Preview a specific layer only |
+| `cadspec preview --plano <name>` | Render a named drawing sheet (`[[plano]]` in `project.toml`) |
 | `cadspec view` | Open the project in the configured viewer |
 | `cadspec view --layer <name>` | Open only one layer in the viewer |
 
@@ -56,6 +60,7 @@ cadspec <command> [options]
 |---------|-------------|
 | `cadspec import <file.dxf>` | Import DXF into `.cf` layers + `project.toml` |
 | `cadspec import <file.dxf> --layer <name>` | Import only one DXF layer |
+| `cadspec import <file.dxf> --output <dir>` | Import into a specific directory |
 | `cadspec config set <key> <value>` | Set global defaults (`author`, `units`) |
 | `cadspec config show` | Show global defaults |
 

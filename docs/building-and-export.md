@@ -50,6 +50,7 @@ cadspec fmt --check   # CI-friendly check mode
 ```bash
 cadspec import plano.dxf                 # all layers
 cadspec import plano.dxf --layer muros   # a single DXF layer
+cadspec import plano.dxf --output casa   # into a specific directory
 ```
 
 Import migrates an existing DXF into `.cf` layer files plus a

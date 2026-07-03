@@ -7,12 +7,16 @@ order: 5
 # Live Preview
 
 ```bash
-cadspec serve                       # start the local preview server
+cadspec serve                       # start the local preview server (background)
 cadspec serve --open --port 4377    # open browser, custom port
+cadspec serve --foreground          # stay attached, stream logs, Ctrl+C to stop
+cadspec serve --stop                # stop the background server for this project
 ```
 
 `cadspec serve` runs a zero-config local server with auto-reload on
-save (SSE). Edit a `.cf` file and the browser updates instantly.
+save (SSE). Edit a `.cf` file and the browser updates instantly. By
+default it detaches into the background and keeps the terminal free;
+use `--foreground` to stay attached or `--stop` to shut it down.
 
 ## Controls
 

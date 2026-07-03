@@ -679,6 +679,8 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
 
         if let Some(boundary) = resolve_boundary(&e.boundary, cf) {
             writer.hatch(&boundary, e.angle, spacing, layer, &style);
+        } else {
+            warn_unresolved_boundary("hatch", e.common.id.as_deref(), &e.boundary, default_layer);
         }
     }
 
@@ -688,7 +690,16 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
         let style = resolve_style(&e.common);
 
         let pts = if let Some(ref boundary_id) = e.boundary {
-            resolve_boundary(boundary_id, cf)
+            let resolved = resolve_boundary(boundary_id, cf);
+            if resolved.is_none() {
+                warn_unresolved_boundary(
+                    "fill",
+                    e.common.id.as_deref(),
+                    boundary_id,
+                    default_layer,
+                );
+            }
+            resolved
         } else {
             e.points
                 .as_ref()
@@ -699,6 +710,20 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
             writer.solid_fill(&pts, layer, &style);
         }
     }
+}
+
+/// Warn (without failing the build) when a hatch/fill references a boundary id
+/// that does not resolve to any closed polyline or rect in the same layer file.
+/// Boundaries are resolved per layer file; a reference to an id defined in a
+/// different layer will not resolve and the region is skipped.
+fn warn_unresolved_boundary(kind: &str, entity_id: Option<&str>, boundary: &str, layer: &str) {
+    let who = entity_id
+        .map(|id| format!("'{}'", id))
+        .unwrap_or_else(|| "<unnamed>".to_string());
+    eprintln!(
+        "warning: {kind} {who} in layer '{layer}' references boundary '{boundary}', \
+         which is not a closed polyline or rect in this layer — region skipped"
+    );
 }
 
 /// Resolve a boundary id to a list of (x,y) points from polylines or rects in the file.

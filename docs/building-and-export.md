@@ -17,7 +17,10 @@ cadspec build --check               # validate only, no DXF
 
 The output is deterministic: identical input produces a bit-identical
 DXF. Export uses proper AutoCAD-compatible entities — LWPOLYLINE for
-polylines, HATCH for solid fills, MTEXT for annotations — with full
+polylines and rectangles, LINE/CIRCLE/ARC for open geometry, TEXT for
+annotations, DIMENSION for measured dims, and SOLID (fan-triangulated)
+for filled regions. Hatch patterns are emitted as clipped LINE segments
+(the `dxf` crate has no native HATCH entity). All entities carry full
 layer/color/lineweight mapping.
 
 ## Drawing sheets (planos)

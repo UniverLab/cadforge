@@ -30,7 +30,7 @@ cadspec is a **CAD as code** CLI tool and Rust library for declarative CAD model
 - **📏 Styled Dimensions** — Auto-measured labels with configurable `text_size`, `precision`, `show_units`, and `offset`.
 - **🔴 Live Preview** — `cadspec serve` runs a local server with pan/zoom, auto-reload on save (SSE), click-to-inspect, per-layer ghost/hide, 3D view, and build-error overlay.
 - **🔗 Layer System** — Organize geometry by layer with custom names, colors, and line weights.
-- **📄 DXF Export** — Compile `.cf` → DXF (AutoCAD-compatible). Full layer support, LWPOLYLINE, HATCH, MTEXT.
+- **📄 DXF Export** — Compile `.cf` → DXF (AutoCAD-compatible). Full layer support, LWPOLYLINE polygons, LINE/CIRCLE/ARC geometry, TEXT annotations, DIMENSION entities, and SOLID-filled regions.
 - **🖼️ Previews for Agents** — Raster PNG + metadata JSON (entity bounding boxes) and full-fidelity SVG with real text, dimensions, line styles, and highlights.
 - **✅ Validation Engine** — `cadspec check` validates geometry and constraints; `--json` for tooling.
 - **🔄 Formatting** — `cadspec fmt` normalizes `.cf` files. `--check` mode for CI.

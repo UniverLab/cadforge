@@ -91,11 +91,14 @@ cadspec import plano.dxf --output casa   # into a specific directory
 Import migrates an existing DXF into `.cf` layer files plus a
 `project.toml`, so legacy drawings can join the declarative workflow.
 Lines, polylines, circles, arcs, text, points and dimensions map back to
-their `.cf` primitives. Filled regions are reconstructed too: adjacent
-SOLID entities on a layer (such as the fan-triangulated fills that
-`cadspec build` emits) are fused back into a single `[[fill]]` with its
-original boundary, so an export/import round-trip does not inflate the
-entity count.
+their `.cf` primitives. Filled and hatched regions are reconstructed too:
+adjacent SOLID entities on a layer (such as the fan-triangulated fills that
+`cadspec build` emits) are fused back into a single `[[fill]]`, and the
+clipped LINE segments a hatch expands into — marked with `CADSPEC_HATCH`
+XDATA on export — are re-fused into a single `[[hatch]]` carrying its region
+and pattern/angle/scale. So an export/import round-trip does not inflate the
+entity count, and only lines this tool emitted are ever folded back into a
+hatch (a foreign DXF's ordinary lines are left untouched).
 
 ## Pipeline
 

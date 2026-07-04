@@ -4,8 +4,14 @@ use anyhow::Result;
 use dxf::entities::{Entity, EntityType, LwPolyline};
 use dxf::enums::AcadVersion;
 use dxf::tables::Layer;
-use dxf::{Color, Drawing, LwPolylineVertex, Point};
+use dxf::{Color, Drawing, LwPolylineVertex, Point, XData, XDataItem};
 use std::path::Path;
+
+/// XDATA application name stamped on the pattern lines a hatch expands into, so
+/// the DXF importer can recognize and re-fuse them back into a single `[[hatch]]`
+/// (instead of dozens of stray `[[line]]`s). Only lines this tool emits carry
+/// the tag, so import never mistakes a foreign DXF's lines for a hatch.
+pub const HATCH_XDATA_APP: &str = "CADSPEC_HATCH";
 
 /// Optional visual attributes applied to any entity.
 #[derive(Default, Clone)]
@@ -24,6 +30,9 @@ impl EntityStyle {
 /// Builder for constructing a DXF drawing from primitives.
 pub struct DxfWriter {
     drawing: Drawing,
+    /// Monotonic id assigned to each hatch so its expanded pattern lines can be
+    /// grouped back together on import.
+    hatch_group_seq: i32,
 }
 
 impl DxfWriter {
@@ -36,7 +45,10 @@ impl DxfWriter {
         drawing.add_line_type(Self::make_line_type("DOTTED", &[0.0, -0.25]));
         drawing.add_line_type(Self::make_line_type("DASHDOT", &[0.5, -0.25, 0.0, -0.25]));
 
-        Self { drawing }
+        Self {
+            drawing,
+            hatch_group_seq: 0,
+        }
     }
 
     fn make_line_type(name: &str, pattern: &[f64]) -> dxf::tables::LineType {
@@ -68,7 +80,8 @@ impl DxfWriter {
 
     // ── Single entry point for adding entities ─────────────────────────
 
-    fn add_entity(&mut self, entity_type: EntityType, layer: &str, style: &EntityStyle) {
+    /// Build a styled entity (layer + color/weight/line-type) without adding it.
+    fn styled_entity(entity_type: EntityType, layer: &str, style: &EntityStyle) -> Entity {
         let mut entity = Entity::new(entity_type);
         entity.common.layer = layer.to_string();
         if let Some(c) = style.color_24bit {
@@ -80,7 +93,12 @@ impl DxfWriter {
         if let Some(lt) = &style.line_type {
             entity.common.line_type_name = lt.clone();
         }
-        self.drawing.add_entity(entity);
+        entity
+    }
+
+    fn add_entity(&mut self, entity_type: EntityType, layer: &str, style: &EntityStyle) {
+        self.drawing
+            .add_entity(Self::styled_entity(entity_type, layer, style));
     }
 
     // ── Public primitive methods ───────────────────────────────────────
@@ -264,20 +282,45 @@ impl DxfWriter {
         }
     }
 
-    /// Generate hatch pattern lines within a rectangular boundary.
+    /// Generate hatch pattern lines within a boundary polygon.
     /// `boundary` is a list of (x,y) points forming a closed polygon.
     /// `angle` is in degrees, `spacing` is distance between lines.
+    ///
+    /// `scale` and `pattern` are the source `[[hatch]]` values, carried on each
+    /// generated line as XDATA (alongside the boundary and a group id) so the
+    /// importer can re-fuse the lines into one `[[hatch]]` on a DXF round-trip.
+    #[allow(clippy::too_many_arguments)]
     pub fn hatch(
         &mut self,
         boundary: &[(f64, f64)],
         angle: f64,
         spacing: f64,
+        scale: f64,
+        pattern: &str,
         layer: &str,
         style: &EntityStyle,
     ) {
         if boundary.len() < 3 {
             return;
         }
+
+        // XDATA stamped on every pattern line of this hatch: group id, source
+        // angle/scale/pattern, then the boundary polygon vertices. All lines of
+        // one hatch share the same payload, so any of them can rebuild it.
+        self.hatch_group_seq += 1;
+        let mut items = vec![
+            XDataItem::Long(self.hatch_group_seq),
+            XDataItem::Real(angle),
+            XDataItem::Real(scale),
+            XDataItem::Str(pattern.to_string()),
+        ];
+        for &(x, y) in boundary {
+            items.push(XDataItem::WorldSpacePosition(Point::new(x, y, 0.0)));
+        }
+        let xdata = XData {
+            application_name: HATCH_XDATA_APP.to_string(),
+            items,
+        };
 
         // Compute bounding box
         let (min_x, max_x, min_y, max_y) = bounding_box(boundary);
@@ -307,7 +350,11 @@ impl DxfWriter {
 
             // Clip line to boundary polygon
             if let Some((cx1, cy1, cx2, cy2)) = clip_line_to_polygon(x1, y1, x2, y2, boundary) {
-                self.line(cx1, cy1, cx2, cy2, layer, style);
+                let line =
+                    dxf::entities::Line::new(Point::new(cx1, cy1, 0.0), Point::new(cx2, cy2, 0.0));
+                let mut entity = Self::styled_entity(EntityType::Line(line), layer, style);
+                entity.common.x_data.push(xdata.clone());
+                self.drawing.add_entity(entity);
             }
         }
     }

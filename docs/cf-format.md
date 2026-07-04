@@ -71,6 +71,37 @@ size = 0.2
 Every entity has a stable `id` — that is what makes plans diffable and
 lets agents target precise edits.
 
+## Filled and hatched regions
+
+`fill` (solid color) and `hatch` (parallel pattern lines) mark an area. The
+region can come from either a reference to a closed `polyline`/`rect` `id` in
+the **same layer file** (`boundary`) or inline `points`:
+
+```toml
+[[fill]]
+id = "fl-closet"
+points = [[0.0, 7.0], [1.2, 7.0], [1.2, 9.0], [0.0, 9.0]]
+color = "#E0E0E0"
+
+[[hatch]]
+id = "ht-bano"
+boundary = "pl-bano"        # id of a closed polyline/rect in this file
+pattern = "ansi31"
+scale = 2.0
+angle = 45.0
+```
+
+Boundaries resolve per layer file: a `boundary` id defined in another layer
+will not resolve (the build warns and skips the region); use inline `points`
+to cross that boundary.
+
+At build time a `hatch` expands into DXF `LINE`s (there is no native HATCH
+entity in the DXF format this tool targets). Those pattern lines carry a
+`CADSPEC_HATCH` marker so `cadspec import` re-fuses them back into a single
+`[[hatch]]` — with inline `points` — instead of dozens of stray `[[line]]`s.
+Only lines this tool emits carry the marker, so importing a foreign DXF never
+mistakes ordinary lines for a hatch.
+
 ## Styled dimensions
 
 `dim` entities are auto-measured — the label is computed from the

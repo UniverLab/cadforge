@@ -1,9 +1,10 @@
 //! DXF importer — converts DXF layers/entities into CADspec `.cf` + `project.toml`.
 
 use crate::color::aci_to_hex;
+use crate::dxf_writer::HATCH_XDATA_APP;
 use anyhow::{anyhow, Context, Result};
 use dxf::entities::EntityType;
-use dxf::Drawing;
+use dxf::{Drawing, XData, XDataItem};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -92,6 +93,59 @@ enum Shape {
     Fill {
         points: Vec<[f64; 2]>,
     },
+    /// A hatched region, recovered from the pattern lines it expanded into by
+    /// reading the `CADSPEC_HATCH` XDATA those lines carry.
+    Hatch {
+        points: Vec<[f64; 2]>,
+        angle: f64,
+        scale: f64,
+        pattern: String,
+    },
+}
+
+/// Hatch parameters recovered from one pattern line's `CADSPEC_HATCH` XDATA.
+struct HatchMeta {
+    group: i32,
+    angle: f64,
+    scale: f64,
+    pattern: String,
+    points: Vec<[f64; 2]>,
+}
+
+/// Read the `CADSPEC_HATCH` XDATA payload (group id, angle, scale, pattern, then
+/// the boundary polygon vertices) off a line entity. Returns `None` for any line
+/// that this tool did not emit as part of a hatch, so foreign DXF lines are never
+/// mistaken for hatch pattern.
+fn parse_hatch_xdata(xdata: &[XData]) -> Option<HatchMeta> {
+    let x = xdata
+        .iter()
+        .find(|x| x.application_name == HATCH_XDATA_APP)?;
+    let mut group = None;
+    let mut angle = None;
+    let mut scale = None;
+    let mut pattern = None;
+    let mut points = Vec::new();
+    for item in &x.items {
+        match item {
+            XDataItem::Long(v) if group.is_none() => group = Some(*v),
+            XDataItem::Real(v) if angle.is_none() => angle = Some(*v),
+            XDataItem::Real(v) if scale.is_none() => scale = Some(*v),
+            XDataItem::Str(s) if pattern.is_none() => pattern = Some(s.clone()),
+            XDataItem::WorldSpacePosition(p) => points.push([p.x, p.y]),
+            _ => {}
+        }
+    }
+    // A hatch needs at least a triangle of boundary to be reconstructable.
+    if points.len() < 3 {
+        return None;
+    }
+    Some(HatchMeta {
+        group: group?,
+        angle: angle?,
+        scale: scale?,
+        pattern: pattern.unwrap_or_else(|| "ansi31".to_string()),
+        points,
+    })
 }
 
 struct Imported {
@@ -119,6 +173,9 @@ pub fn import_dxf(input: &Path, output_dir: &Path, layer_filter: Option<&str>) -
     let mut layers: BTreeMap<String, LayerFile> = BTreeMap::new();
     let mut layer_colors: BTreeMap<String, String> = BTreeMap::new();
     let mut unsupported = 0usize;
+    // Pattern lines of the same hatch (same XDATA group id) are collected here
+    // and re-fused into one `[[hatch]]` after the entity pass, keyed by group id.
+    let mut hatch_groups: BTreeMap<i32, (String, Imported)> = BTreeMap::new();
 
     match Drawing::load_file(input) {
         Ok(drawing) => {
@@ -140,6 +197,30 @@ pub fn import_dxf(input: &Path, output_dir: &Path, layer_filter: Option<&str>) -
                 }
 
                 let style = StyleAttrs::from_common(&entity.common);
+
+                // A line stamped with CADSPEC_HATCH XDATA is one of a hatch's
+                // pattern lines: register its group (once) and drop the line, so
+                // the round-trip yields one `[[hatch]]` instead of N `[[line]]`.
+                if matches!(&entity.specific, EntityType::Line(_)) {
+                    if let Some(meta) = parse_hatch_xdata(&entity.common.x_data) {
+                        hatch_groups.entry(meta.group).or_insert_with(|| {
+                            (
+                                layer_name.clone(),
+                                Imported {
+                                    shape: Shape::Hatch {
+                                        points: meta.points,
+                                        angle: meta.angle,
+                                        scale: meta.scale,
+                                        pattern: meta.pattern,
+                                    },
+                                    style: style.clone(),
+                                },
+                            )
+                        });
+                        continue;
+                    }
+                }
+
                 let shape = match &entity.specific {
                     EntityType::Line(e) => Some(Shape::Line {
                         from: [e.p1.x, e.p1.y],
@@ -189,6 +270,16 @@ pub fn import_dxf(input: &Path, output_dir: &Path, layer_filter: Option<&str>) -
                         .entities
                         .push(Imported { shape, style });
                 }
+            }
+
+            // Emit one hatch per collected group into its layer (ordered by
+            // group id for deterministic output).
+            for (_group, (layer_name, imported)) in hatch_groups {
+                layers
+                    .entry(layer_name)
+                    .or_default()
+                    .entities
+                    .push(imported);
             }
 
             for layer in layers.values_mut() {
@@ -690,6 +781,28 @@ fn emit_shape(shape: &Shape) -> (&'static str, String) {
                 .join(", ");
             ("fl", format!("points = [{}]\n", pts))
         }
+        Shape::Hatch {
+            points,
+            angle,
+            scale,
+            pattern,
+        } => {
+            let pts = points
+                .iter()
+                .map(|p| format!("[{}, {}]", n(p[0]), n(p[1])))
+                .collect::<Vec<_>>()
+                .join(", ");
+            (
+                "ht",
+                format!(
+                    "points = [{}]\npattern = \"{}\"\nangle = {}\nscale = {}\n",
+                    pts,
+                    escape_string(pattern),
+                    n(*angle),
+                    n(*scale)
+                ),
+            )
+        }
     }
 }
 
@@ -703,6 +816,7 @@ fn header_for(prefix: &str) -> &'static str {
         "pt" => "point",
         "dm" => "dim",
         "fl" => "fill",
+        "ht" => "hatch",
         _ => "line",
     }
 }

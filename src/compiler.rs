@@ -677,10 +677,27 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
         let style = resolve_style(&e.common);
         let spacing = 0.1 * e.scale; // base spacing scaled
 
-        if let Some(boundary) = resolve_boundary(&e.boundary, cf) {
-            writer.hatch(&boundary, e.angle, spacing, layer, &style);
+        let boundary = if let Some(ref boundary_id) = e.boundary {
+            let resolved = resolve_boundary(boundary_id, cf);
+            if resolved.is_none() {
+                warn_unresolved_boundary(
+                    "hatch",
+                    e.common.id.as_deref(),
+                    boundary_id,
+                    default_layer,
+                );
+            }
+            resolved
         } else {
-            warn_unresolved_boundary("hatch", e.common.id.as_deref(), &e.boundary, default_layer);
+            e.points
+                .as_ref()
+                .map(|p| p.iter().map(|v| (v[0], v[1])).collect())
+        };
+
+        if let Some(boundary) = boundary {
+            writer.hatch(
+                &boundary, e.angle, spacing, e.scale, &e.pattern, layer, &style,
+            );
         }
     }
 

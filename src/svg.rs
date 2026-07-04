@@ -526,7 +526,14 @@ pub fn enumerate_entities(cf: &CfFile) -> Vec<EntityRecord> {
         });
     }
     for e in &cf.hatches {
-        if let Some(pts) = resolve_boundary(&e.boundary, cf) {
+        let pts = if let Some(boundary_id) = &e.boundary {
+            resolve_boundary(boundary_id, cf)
+        } else {
+            e.points
+                .as_ref()
+                .map(|p| p.iter().map(|v| (v[0], v[1])).collect())
+        };
+        if let Some(pts) = pts {
             out.push(EntityRecord {
                 id: e.common.id.clone(),
                 kind: "hatch",
@@ -700,7 +707,14 @@ fn render_layer(c: &mut Canvas, cf: &CfFile, layer_color: &str, default_weight: 
     }
 
     for e in cf.hatches.iter().filter(|e| e.common.visible) {
-        if let Some(boundary) = resolve_boundary(&e.boundary, cf) {
+        let boundary = if let Some(boundary_id) = &e.boundary {
+            resolve_boundary(boundary_id, cf)
+        } else {
+            e.points
+                .as_ref()
+                .map(|p| p.iter().map(|v| (v[0], v[1])).collect())
+        };
+        if let Some(boundary) = boundary {
             let s = resolve_style(&e.common, layer_color, default_weight);
             draw_hatch(
                 c,

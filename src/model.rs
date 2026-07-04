@@ -143,7 +143,12 @@ pub enum DimType {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct CfHatch {
-    pub boundary: String,
+    /// Reference to a closed polyline or rect id, or inline points.
+    #[serde(default)]
+    pub boundary: Option<String>,
+    /// Inline points (alternative to boundary reference). Used by DXF import to
+    /// round-trip a hatch's region without depending on a separate boundary id.
+    pub points: Option<Vec<[f64; 2]>>,
     #[serde(default = "default_pattern")]
     pub pattern: String,
     #[serde(default = "default_scale")]

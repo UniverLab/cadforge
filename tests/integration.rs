@@ -163,7 +163,7 @@ angle = 45.0
 
     let cf: cadspec::model::CfFile = toml::from_str(toml).unwrap();
     assert_eq!(cf.hatches.len(), 1);
-    assert_eq!(cf.hatches[0].boundary, "pl-room");
+    assert_eq!(cf.hatches[0].boundary.as_deref(), Some("pl-room"));
 
     // Compile it to verify no panic
     use cadspec::dxf_writer::DxfWriter;
@@ -521,6 +521,90 @@ offset = -1.2
 
     // The reimported project must still compile
     compile_project(imported, None, None).unwrap();
+
+    let _ = fs::remove_dir_all(dir);
+    let _ = fs::remove_dir_all(imported);
+}
+
+#[test]
+fn import_refuses_hatch_lines_into_single_hatch() {
+    // A hatch expands into many DXF pattern lines. On import they must collapse
+    // back into one `[[hatch]]` (with its region + pattern/angle/scale), while a
+    // genuine standalone line on the same layer survives as a `[[line]]`.
+    let dir = Path::new("/tmp/cadspec_hatch_roundtrip");
+    let _ = fs::remove_dir_all(dir);
+    fs::create_dir_all(dir).unwrap();
+    fs::write(
+        dir.join("project.toml"),
+        "[project]\nname = \"ht\"\nunits = \"m\"\n\n[layers]\nzona = { file = \"zona.cf\", locked = false }\n",
+    )
+    .unwrap();
+    fs::write(
+        dir.join("zona.cf"),
+        r##"[layer]
+name = "zona"
+color = "#C0C0C0"
+
+[[polyline]]
+id = "pl-room"
+points = [[0.0, 0.0], [4.0, 0.0], [4.0, 3.0], [0.0, 3.0]]
+closed = true
+
+[[hatch]]
+id = "ht-room"
+boundary = "pl-room"
+pattern = "ansi31"
+scale = 2.0
+angle = 45.0
+
+[[line]]
+id = "ln-real"
+from = [0.0, 0.0]
+to = [4.0, 3.0]
+"##,
+    )
+    .unwrap();
+
+    let dxf_path = dir.join("output.dxf");
+    compile_project(dir, None, Some(&dxf_path)).unwrap();
+    // The hatch really did expand into several tagged pattern lines in the DXF.
+    let dxf_text = fs::read_to_string(&dxf_path).unwrap();
+    assert!(
+        dxf_text.matches("CADSPEC_HATCH").count() > 3,
+        "expected the hatch to expand into multiple tagged pattern lines"
+    );
+
+    let imported = Path::new("/tmp/cadspec_hatch_roundtrip_out");
+    let _ = fs::remove_dir_all(imported);
+    import_dxf(&dxf_path, imported, None).unwrap();
+    let cf = fs::read_to_string(imported.join("zona.cf")).unwrap();
+
+    // Exactly one hatch comes back, carrying its region and source parameters.
+    assert_eq!(
+        cf.matches("[[hatch]]").count(),
+        1,
+        "hatch not re-fused:\n{cf}"
+    );
+    assert!(cf.contains("pattern = \"ansi31\""), "pattern lost:\n{cf}");
+    assert!(cf.contains("angle = 45.0000"), "angle lost:\n{cf}");
+    assert!(cf.contains("scale = 2.0000"), "scale lost:\n{cf}");
+    // The genuine line survives; hatch pattern lines are not emitted as lines.
+    assert_eq!(
+        cf.matches("[[line]]").count(),
+        1,
+        "hatch pattern lines leaked as lines:\n{cf}"
+    );
+
+    // The reimported hatch (now using inline points) still compiles and expands
+    // back into the same tagged pattern lines — a stable round-trip.
+    let dxf2 = imported.join("output2.dxf");
+    compile_project(imported, None, Some(&dxf2)).unwrap();
+    let dxf2_text = fs::read_to_string(&dxf2).unwrap();
+    assert_eq!(
+        dxf_text.matches("CADSPEC_HATCH").count(),
+        dxf2_text.matches("CADSPEC_HATCH").count(),
+        "hatch pattern-line count drifted across a round-trip"
+    );
 
     let _ = fs::remove_dir_all(dir);
     let _ = fs::remove_dir_all(imported);

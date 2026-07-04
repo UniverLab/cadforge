@@ -279,8 +279,15 @@ fn copy_targets(
     let mut new_hatches = Vec::new();
     for e in out.hatches.iter().filter(|e| hit(&e.common.id, targets)) {
         let mut c = e.clone();
-        if targets.contains(&e.boundary) {
-            c.boundary = format!("{}{}", e.boundary, suffix);
+        if let Some(boundary) = &e.boundary {
+            if targets.contains(boundary) {
+                c.boundary = Some(format!("{}{}", boundary, suffix));
+            }
+        }
+        if let Some(points) = &mut c.points {
+            for p in points {
+                *p = op.apply(*p);
+            }
         }
         c.common.id = suffixed(&e.common.id, suffix);
         new_hatches.push(c);
@@ -477,7 +484,7 @@ offset = [3.0, 0.0]
         );
         let out = expand_cf(&cf);
         assert_eq!(out.hatches.len(), 2);
-        assert_eq!(out.hatches[1].boundary, "zona@1");
+        assert_eq!(out.hatches[1].boundary.as_deref(), Some("zona@1"));
         assert_eq!(out.polylines[1].points[0], [3.0, 0.0]);
     }
 }

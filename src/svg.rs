@@ -341,7 +341,14 @@ fn render_layers(
             continue;
         }
         let _ = write!(canvas.out, r#"<g data-layer="{}">"#, xml_escape(layer_name));
-        render_layer(&mut canvas, cf, &layer_color, default_weight, units);
+        render_layer(
+            &mut canvas,
+            cf,
+            layer_name,
+            &layer_color,
+            default_weight,
+            units,
+        );
         canvas.out.push_str("</g>");
     }
 
@@ -613,7 +620,14 @@ fn draw_grid(c: &mut Canvas, bounds: &Bounds) {
     c.out.push_str("</g>");
 }
 
-fn render_layer(c: &mut Canvas, cf: &CfFile, layer_color: &str, default_weight: f64, units: &str) {
+fn render_layer(
+    c: &mut Canvas,
+    cf: &CfFile,
+    layer_name: &str,
+    layer_color: &str,
+    default_weight: f64,
+    units: &str,
+) {
     for e in cf.lines.iter().filter(|e| e.common.visible) {
         let s = resolve_style(&e.common, layer_color, default_weight);
         let (x1, y1) = c.world_to_px(e.from[0], e.from[1]);
@@ -688,7 +702,16 @@ fn render_layer(c: &mut Canvas, cf: &CfFile, layer_color: &str, default_weight: 
     // Fills and hatches go before text so labels stay readable on top.
     for e in cf.fills.iter().filter(|e| e.common.visible) {
         let pts = if let Some(boundary_id) = &e.boundary {
-            resolve_boundary(boundary_id, cf)
+            let resolved = resolve_boundary(boundary_id, cf);
+            if resolved.is_none() {
+                crate::compiler::warn_unresolved_boundary(
+                    "fill",
+                    e.common.id.as_deref(),
+                    boundary_id,
+                    layer_name,
+                );
+            }
+            resolved
         } else {
             e.points
                 .as_ref()
@@ -708,7 +731,16 @@ fn render_layer(c: &mut Canvas, cf: &CfFile, layer_color: &str, default_weight: 
 
     for e in cf.hatches.iter().filter(|e| e.common.visible) {
         let boundary = if let Some(boundary_id) = &e.boundary {
-            resolve_boundary(boundary_id, cf)
+            let resolved = resolve_boundary(boundary_id, cf);
+            if resolved.is_none() {
+                crate::compiler::warn_unresolved_boundary(
+                    "hatch",
+                    e.common.id.as_deref(),
+                    boundary_id,
+                    layer_name,
+                );
+            }
+            resolved
         } else {
             e.points
                 .as_ref()

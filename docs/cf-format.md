@@ -92,8 +92,10 @@ angle = 45.0
 ```
 
 Boundaries resolve per layer file: a `boundary` id defined in another layer
-will not resolve (the build warns and skips the region); use inline `points`
-to cross that boundary.
+will not resolve. This is by design — layer files are the resolution
+boundary, not an oversight to fix — and both `build` and `preview`/`serve`
+warn on stderr and skip the region rather than failing or dropping it
+silently. Use inline `points` to reference geometry from another layer.
 
 At build time a `hatch` expands into DXF `LINE`s (there is no native HATCH
 entity in the DXF format this tool targets). Those pattern lines carry a

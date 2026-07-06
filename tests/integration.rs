@@ -609,3 +609,65 @@ to = [4.0, 3.0]
     let _ = fs::remove_dir_all(dir);
     let _ = fs::remove_dir_all(imported);
 }
+
+#[test]
+fn preview_warns_on_unresolved_hatch_and_fill_boundary() {
+    let dir = Path::new("/tmp/cadspec_preview_unresolved_boundary");
+    let _ = fs::remove_dir_all(dir);
+    fs::create_dir_all(dir).unwrap();
+
+    fs::write(
+        dir.join("project.toml"),
+        r#"[project]
+name = "boundary-fixture"
+scale = "1:100"
+units = "m"
+
+[layers]
+main = { file = "main.cf" }
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        dir.join("main.cf"),
+        r##"[layer]
+name = "main"
+
+[[hatch]]
+id = "ht-missing"
+boundary = "does-not-exist"
+pattern = "ansi31"
+scale = 1.0
+angle = 45.0
+
+[[fill]]
+id = "fl-missing"
+boundary = "also-missing"
+"##,
+    )
+    .unwrap();
+
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_cadspec"))
+        .args(["preview", "-p"])
+        .arg(dir)
+        .args(["--format", "svg"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "preview should not fail on an unresolved boundary, it should warn and skip the region"
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("hatch 'ht-missing'") && stderr.contains("does-not-exist"),
+        "expected a warning for the unresolved hatch boundary, got:\n{stderr}"
+    );
+    assert!(
+        stderr.contains("fill 'fl-missing'") && stderr.contains("also-missing"),
+        "expected a warning for the unresolved fill boundary, got:\n{stderr}"
+    );
+
+    let _ = fs::remove_dir_all(dir);
+}

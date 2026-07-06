@@ -732,8 +732,14 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
 /// Warn (without failing the build) when a hatch/fill references a boundary id
 /// that does not resolve to any closed polyline or rect in the same layer file.
 /// Boundaries are resolved per layer file; a reference to an id defined in a
-/// different layer will not resolve and the region is skipped.
-fn warn_unresolved_boundary(kind: &str, entity_id: Option<&str>, boundary: &str, layer: &str) {
+/// different layer will not resolve and the region is skipped. Shared with
+/// `svg.rs` so preview/SVG rendering warns on the same condition as `build`.
+pub(crate) fn warn_unresolved_boundary(
+    kind: &str,
+    entity_id: Option<&str>,
+    boundary: &str,
+    layer: &str,
+) {
     let who = entity_id
         .map(|id| format!("'{}'", id))
         .unwrap_or_else(|| "<unnamed>".to_string());

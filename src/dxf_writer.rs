@@ -211,7 +211,6 @@ impl DxfWriter {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[allow(clippy::too_many_arguments)]
     pub fn dim_linear(
         &mut self,
         x1: f64,

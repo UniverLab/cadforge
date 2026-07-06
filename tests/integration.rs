@@ -671,3 +671,61 @@ boundary = "also-missing"
 
     let _ = fs::remove_dir_all(dir);
 }
+
+/// Copy a project's source files (project.toml + *.cf) into `dest`, skipping
+/// generated/gitignored artifacts like output.dxf or preview.*.
+fn copy_project_sources(src: &Path, dest: &Path) {
+    fs::create_dir_all(dest).unwrap();
+    for entry in fs::read_dir(src).unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        let name = entry.file_name();
+        let is_source = name == "project.toml" || path.extension().is_some_and(|e| e == "cf");
+        if path.is_file() && is_source {
+            fs::copy(&path, dest.join(&name)).unwrap();
+        }
+    }
+}
+
+#[test]
+fn fmt_is_idempotent_on_a_real_project() {
+    use cadspec::fmt::format_project;
+
+    let dir = Path::new("/tmp/cadspec_fmt_real_project");
+    let _ = fs::remove_dir_all(dir);
+    copy_project_sources(Path::new("examples/vivienda"), dir);
+
+    // First pass may or may not need changes; either way it must succeed.
+    format_project(dir, false).unwrap();
+    let after_first: Vec<(std::path::PathBuf, String)> = fs::read_dir(dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| p.extension().is_some_and(|e| e == "cf") || p.ends_with("project.toml"))
+        .map(|p| {
+            let content = fs::read_to_string(&p).unwrap();
+            (p, content)
+        })
+        .collect();
+
+    // A formatted project must still compile to a valid DXF.
+    let dxf_path = dir.join("output.dxf");
+    compile_project(dir, None, Some(&dxf_path)).unwrap();
+    assert!(dxf_path.exists());
+
+    // `fmt --check` on an already-formatted project reports nothing to do.
+    format_project(dir, true).unwrap();
+
+    // A second `fmt` pass must be a no-op (idempotent) on every file.
+    format_project(dir, false).unwrap();
+    for (path, before) in after_first {
+        let after = fs::read_to_string(&path).unwrap();
+        assert_eq!(
+            before,
+            after,
+            "fmt was not idempotent on {}",
+            path.display()
+        );
+    }
+
+    let _ = fs::remove_dir_all(dir);
+}

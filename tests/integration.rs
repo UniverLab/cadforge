@@ -789,3 +789,153 @@ title = "Planta baja"
 
     let _ = fs::remove_dir_all(dir);
 }
+
+/// An OS-assigned free port: bind to port 0, read back what the OS picked,
+/// then drop the listener so `serve_project` can bind it itself.
+fn free_local_port() -> u16 {
+    std::net::TcpListener::bind(("127.0.0.1", 0))
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port()
+}
+
+fn wait_for_port(port: u16, timeout: std::time::Duration) -> bool {
+    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+    let deadline = std::time::Instant::now() + timeout;
+    while std::time::Instant::now() < deadline {
+        if std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_millis(200))
+            .is_ok()
+        {
+            return true;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    false
+}
+
+/// GET `path` from the local `serve` instance and return (status, body).
+/// Sends `Connection: close` so the server closes the socket once done and we
+/// can just read to EOF instead of tracking Content-Length ourselves.
+fn http_get(port: u16, path: &str) -> (u16, String) {
+    use std::io::{Read, Write};
+    let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+    stream
+        .write_all(
+            format!("GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+                .as_bytes(),
+        )
+        .unwrap();
+    stream.shutdown(std::net::Shutdown::Write).ok();
+    let mut raw = String::new();
+    stream.read_to_string(&mut raw).unwrap();
+    let (head, body) = raw.split_once("\r\n\r\n").unwrap_or((raw.as_str(), ""));
+    let status = head
+        .lines()
+        .next()
+        .and_then(|l| l.split_whitespace().nth(1))
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
+    (status, body.to_string())
+}
+
+fn state_version(port: u16) -> u64 {
+    let (status, body) = http_get(port, "/state");
+    assert_eq!(status, 200, "GET /state failed: {body}");
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    json["version"].as_u64().unwrap()
+}
+
+#[test]
+fn serve_project_serves_state_and_rebuilds_on_file_change_e2e() {
+    let dir = Path::new("/tmp/cadspec_serve_e2e");
+    let _ = fs::remove_dir_all(dir);
+    copy_project_sources(Path::new("examples/vivienda"), dir);
+
+    let port = free_local_port();
+    let serve_dir = dir.to_path_buf();
+    std::thread::spawn(move || {
+        // Leaked on purpose: serve_project blocks forever in listener.incoming()
+        // (no shutdown hook exists); the thread dies with the test process.
+        let _ = cadspec::serve::serve_project(&serve_dir, port, false);
+    });
+    assert!(
+        wait_for_port(port, std::time::Duration::from_secs(5)),
+        "serve did not start listening on 127.0.0.1:{port} in time"
+    );
+
+    let (status, body) = http_get(port, "/state");
+    assert_eq!(status, 200);
+    assert!(body.contains("Vivienda Unifamiliar Lote 12"));
+    let initial_version = state_version(port);
+
+    let (svg_status, svg_body) = http_get(port, "/preview.svg");
+    assert_eq!(svg_status, 200);
+    assert!(svg_body.contains("<svg"));
+
+    let (missing_status, _) = http_get(port, "/does-not-exist");
+    assert_eq!(missing_status, 404);
+
+    // Editing a watched .cf file must trigger a rebuild: bump the state version.
+    let muros = dir.join("muros.cf");
+    let mut contents = fs::read_to_string(&muros).unwrap();
+    contents
+        .push_str("\n# touched by serve_project_serves_state_and_rebuilds_on_file_change_e2e\n");
+    fs::write(&muros, contents).unwrap();
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    let mut rebuilt_version = initial_version;
+    while std::time::Instant::now() < deadline && rebuilt_version <= initial_version {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        rebuilt_version = state_version(port);
+    }
+    assert!(
+        rebuilt_version > initial_version,
+        "expected a rebuild (version > {initial_version}) after editing muros.cf, got {rebuilt_version}"
+    );
+
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
+fn watch_project_rebuilds_dxf_on_file_change_e2e() {
+    let dir = Path::new("/tmp/cadspec_watch_e2e");
+    let _ = fs::remove_dir_all(dir);
+    copy_project_sources(Path::new("examples/vivienda"), dir);
+
+    let output = dir.join("output.dxf");
+    assert!(!output.exists());
+
+    let watch_dir = dir.to_path_buf();
+    std::thread::spawn(move || {
+        // Leaked on purpose: watch_project blocks forever on rx.recv() (no
+        // shutdown hook exists); the thread dies with the test process.
+        let _ = cadspec::watch::watch_project(&watch_dir);
+    });
+
+    // Give the watcher time to register and clear its own startup debounce
+    // window (a change within DEBOUNCE=300ms of start is silently dropped,
+    // since `last_build` is initialized before the watch loop even starts).
+    std::thread::sleep(std::time::Duration::from_millis(500));
+
+    let muros = dir.join("muros.cf");
+    let mut contents = fs::read_to_string(&muros).unwrap();
+    contents.push_str("\n# touched by watch_project_rebuilds_dxf_on_file_change_e2e\n");
+    fs::write(&muros, contents).unwrap();
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while std::time::Instant::now() < deadline && !output.exists() {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    assert!(
+        output.exists(),
+        "watch did not rebuild output.dxf after editing muros.cf"
+    );
+    let dxf = fs::read_to_string(&output).unwrap();
+    assert!(
+        dxf.contains("SECTION"),
+        "output.dxf does not look like a DXF file"
+    );
+
+    let _ = fs::remove_dir_all(dir);
+}

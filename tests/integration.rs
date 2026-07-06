@@ -490,10 +490,11 @@ offset = -1.2
     import_dxf(&dxf_path, imported, None).unwrap();
     let cf = fs::read_to_string(imported.join("plano.cf")).unwrap();
 
-    // Layer color survives via the DXF layer table (ACI): #FF4444 is not in
-    // the standard palette, so it comes back as the nearest ACI color (red).
+    // Layer color survives via the DXF layer table (ACI): #FF4444 is not
+    // itself an ACI color, so it comes back as the nearest ACI palette
+    // entry (#FF3F00, ACI 20).
     assert!(
-        cf.contains("color = \"#FF0000\""),
+        cf.contains("color = \"#FF3F00\""),
         "layer color lost:\n{cf}"
     );
     // Entity style survives via true color, lineweight and line type

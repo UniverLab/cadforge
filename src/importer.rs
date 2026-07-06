@@ -22,11 +22,7 @@ impl StyleAttrs {
         let color = if common.color_24_bit > 0 {
             Some(format!("#{:06X}", common.color_24_bit))
         } else {
-            common
-                .color
-                .index()
-                .filter(|i| (1..=9).contains(i))
-                .map(|i| aci_to_hex(i).to_string())
+            common.color.index().filter(|i| *i > 0).map(aci_to_hex)
         };
         let weight = (common.lineweight_enum_value > 0)
             .then(|| f64::from(common.lineweight_enum_value) / 100.0);
@@ -181,10 +177,7 @@ pub fn import_dxf(input: &Path, output_dir: &Path, layer_filter: Option<&str>) -
         Ok(drawing) => {
             for layer in drawing.layers() {
                 if let Some(index) = layer.color.index() {
-                    layer_colors.insert(
-                        normalize_layer_name(&layer.name),
-                        aci_to_hex(index).to_string(),
-                    );
+                    layer_colors.insert(normalize_layer_name(&layer.name), aci_to_hex(index));
                 }
             }
 

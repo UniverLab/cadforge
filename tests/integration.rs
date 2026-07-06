@@ -729,3 +729,63 @@ fn fmt_is_idempotent_on_a_real_project() {
 
     let _ = fs::remove_dir_all(dir);
 }
+
+#[test]
+fn generate_plano_renders_a_declared_sheet_end_to_end() {
+    use cadspec::preview::{generate_plano, PreviewOutputs};
+
+    let dir = Path::new("/tmp/cadspec_generate_plano_e2e");
+    let _ = fs::remove_dir_all(dir);
+    copy_project_sources(Path::new("examples/vivienda"), dir);
+
+    // examples/vivienda has no [[plano]] declared; append one so generate_plano
+    // (the CLI-facing `preview --plano` path) has a sheet to look up by name.
+    let mut project_toml = fs::read_to_string(dir.join("project.toml")).unwrap();
+    project_toml.push_str(
+        r#"
+[[plano]]
+name = "P-01"
+view = "plan"
+size = [420.0, 297.0]
+scale = "1:50"
+title = "Planta baja"
+"#,
+    );
+    fs::write(dir.join("project.toml"), project_toml).unwrap();
+
+    generate_plano(
+        dir,
+        "P-01",
+        1200,
+        900,
+        PreviewOutputs {
+            png: true,
+            svg: true,
+        },
+    )
+    .unwrap();
+
+    assert!(dir.join("preview.png").exists());
+    let svg = fs::read_to_string(dir.join("preview.svg")).unwrap();
+    assert!(svg.contains(r#"data-view="plano""#));
+    assert!(svg.contains("Planta baja"));
+
+    // An unknown plano name is a clear error, not a panic.
+    let err = generate_plano(
+        dir,
+        "does-not-exist",
+        1200,
+        900,
+        PreviewOutputs {
+            png: true,
+            svg: true,
+        },
+    )
+    .unwrap_err();
+    assert!(
+        err.to_string().contains("P-01"),
+        "error should list the available plano names: {err}"
+    );
+
+    let _ = fs::remove_dir_all(dir);
+}

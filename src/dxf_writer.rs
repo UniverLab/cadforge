@@ -3,7 +3,7 @@
 use anyhow::Result;
 use dxf::entities::{Entity, EntityType, LwPolyline};
 use dxf::enums::AcadVersion;
-use dxf::tables::Layer;
+use dxf::tables::{AppId, Layer};
 use dxf::{Color, Drawing, LwPolylineVertex, Point, XData, XDataItem};
 use std::path::Path;
 
@@ -44,6 +44,13 @@ impl DxfWriter {
         drawing.add_line_type(Self::make_line_type("DASHED", &[0.5, -0.25]));
         drawing.add_line_type(Self::make_line_type("DOTTED", &[0.0, -0.25]));
         drawing.add_line_type(Self::make_line_type("DASHDOT", &[0.5, -0.25, 0.0, -0.25]));
+
+        // Register the APPID our hatch pattern lines stamp XDATA under, so
+        // strict readers don't have to fall back on undeclared-app tolerance.
+        drawing.add_app_id(AppId {
+            name: HATCH_XDATA_APP.to_string(),
+            ..Default::default()
+        });
 
         Self {
             drawing,

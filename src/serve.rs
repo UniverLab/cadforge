@@ -501,6 +501,7 @@ fn handle_connection(stream: TcpStream, state: &Shared) -> std::io::Result<()> {
             }
         }
         "/events" => serve_events(stream, state),
+        "/favicon.svg" => respond(stream, "200 OK", "image/svg+xml", FAVICON_SVG.as_bytes()),
         _ => respond(stream, "404 Not Found", "text/plain", b"not found"),
     }
 }
@@ -740,25 +741,17 @@ fn html_escape(s: &str) -> String {
         .replace('>', "&gt;")
 }
 
+const FAVICON_SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#0d0e11"/><text x="16" y="22" font-family="monospace" font-size="16" font-weight="700" fill="#6ec6e6" text-anchor="middle">cs</text></svg>"##;
+
 const INDEX_HTML: &str = r##"<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <title>{{PROJECT_NAME}} — cadspec live</title>
-<script>
-  // Theme: follow the OS unless the user toggled an explicit choice. Pre-paint
-  // so there is no flash.
-  (function () {
-    try {
-      var t = localStorage.getItem('cadspec-theme');
-      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
-    } catch (e) {}
-  })();
-</script>
+<link rel="icon" href="/favicon.svg">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap');
-  /* Dark is the default (the lab). System light, or the toggle, flips to the
-     plan-white. `[data-theme]` (set by the toggle) overrides the system. */
+  /* Dark only — this is the lab, not the plan-white. */
   :root {
     --bg: #0d0e11; --panel: #14161a; --panel-2: #181b20;
     --ink: #d6dadf; --ink-strong: #ffffff; --ink-dim: #aab0b8;
@@ -768,28 +761,6 @@ const INDEX_HTML: &str = r##"<!DOCTYPE html>
     --ok: #5dd39e; --err: #e0746e; --err-soft: #2a1212; --err-ink: #ff9f9a;
     --code-bg: #0a0b0d; --code-ink: #cdd6df;
     --t-num: #d9a35f; --t-hdr: #c79be0;
-  }
-  :root[data-theme="light"], :root[data-theme="light"] :root {
-    --bg: #f6f8fa; --panel: #ffffff; --panel-2: #eef2f5;
-    --ink: #1b2630; --ink-strong: #0a1218; --ink-dim: #41505b;
-    --ink-mute: #6b7882; --ink-faint: #97a2ab;
-    --line: #dde5ea; --line-2: #cdd7de;
-    --accent: #156c80; --accent-soft: rgba(21,108,128,0.12);
-    --ok: #1f8f5a; --err: #b23b34; --err-soft: #fbeae9; --err-ink: #9a3027;
-    --code-bg: #f0f3f5; --code-ink: #1b2630;
-    --t-num: #9a6516; --t-hdr: #7a3fa0;
-  }
-  @media (prefers-color-scheme: light) {
-    :root:not([data-theme]) {
-      --bg: #f6f8fa; --panel: #ffffff; --panel-2: #eef2f5;
-      --ink: #1b2630; --ink-strong: #0a1218; --ink-dim: #41505b;
-      --ink-mute: #6b7882; --ink-faint: #97a2ab;
-      --line: #dde5ea; --line-2: #cdd7de;
-      --accent: #156c80; --accent-soft: rgba(21,108,128,0.12);
-      --ok: #1f8f5a; --err: #b23b34; --err-soft: #fbeae9; --err-ink: #9a3027;
-      --code-bg: #f0f3f5; --code-ink: #1b2630;
-      --t-num: #9a6516; --t-hdr: #7a3fa0;
-    }
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: var(--bg); color: var(--ink); font-family: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -887,7 +858,6 @@ const INDEX_HTML: &str = r##"<!DOCTYPE html>
   <button id="btn3d" title="extruded 3D view (key: 3)">3D</button>
   <button id="btnfit" title="fit to view (key: F)">fit</button>
   <button id="btneditor" class="active" title="toggle editor (key: E)">editor</button>
-  <button id="btntheme" title="theme — follow system / light / dark">◐</button>
   <span id="hint">edit .cf files — preview updates automatically</span>
 </header>
 <main>
@@ -1120,6 +1090,7 @@ async function refresh() {
     if (!fitted) fitToView();
     if (mode3d && window.gl3d) window.gl3d.reload();
   }
+  if (window.__reloadEditorIfClean) window.__reloadEditorIfClean();
 }
 
 // ── input ───────────────────────────────────────────────────────────
@@ -1250,34 +1221,6 @@ events.onerror = () => dot.classList.add('err');
 refresh();
 </script>
 <script>
-  // ── Theme toggle: auto (follow system) → light → dark → auto ───────────────
-  (function () {
-    var root = document.documentElement;
-    var btn = document.getElementById('btntheme');
-    var mq = matchMedia('(prefers-color-scheme: light)');
-    function mode() {
-      var t = root.dataset.theme;
-      return t === 'light' || t === 'dark' ? t : 'auto';
-    }
-    function apply(m) {
-      if (m === 'auto') {
-        delete root.dataset.theme;
-        try { localStorage.removeItem('cadspec-theme'); } catch (e) {}
-      } else {
-        root.dataset.theme = m;
-        try { localStorage.setItem('cadspec-theme', m); } catch (e) {}
-      }
-      var eff = m === 'auto' ? (mq.matches ? 'light' : 'dark') : m;
-      btn.textContent = m === 'auto' ? '◐' : m === 'light' ? '☀' : '☾';
-      btn.title = 'theme: ' + m + (m === 'auto' ? ' (' + eff + ')' : '') + ' — click to change';
-    }
-    btn.addEventListener('click', function () {
-      apply({ auto: 'light', light: 'dark', dark: 'auto' }[mode()]);
-    });
-    mq.addEventListener('change', function () { if (mode() === 'auto') apply('auto'); });
-    apply(mode());
-  })();
-
   // ── Built-in .cf editor: syntax highlight + debounced auto-save ─────────────
   (function () {
     var editor = document.getElementById('editor');
@@ -1291,6 +1234,8 @@ refresh();
     var current = null; // the file currently loaded in the textarea
     var timer = null;
     var SAVE_DELAY = 600;
+    var dirty = false;     // unsaved edits pending (or in-flight)
+    var lastInput = 0;     // Date.now() of the last keystroke
 
     function setStatus(msg, cls) { status.textContent = msg; status.className = cls || ''; }
     function escHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -1323,7 +1268,10 @@ refresh();
       setStatus('saving…');
       fetch('/save?name=' + encodeURIComponent(name), { method: 'POST', body: text.value })
         .then(function (r) { return r.json(); })
-        .then(function (j) { setStatus(j.ok ? 'saved · ' + name : 'saved · build error (see viewer)', j.ok ? 'ok' : 'err'); })
+        .then(function (j) {
+          dirty = false;
+          setStatus(j.ok ? 'saved · ' + name : 'saved · build error (see viewer)', j.ok ? 'ok' : 'err');
+        })
         .catch(function () { setStatus('save failed', 'err'); });
     }
     function scheduleSave() {
@@ -1335,7 +1283,7 @@ refresh();
       clearTimeout(timer); timer = null;
       fetch('/file?name=' + encodeURIComponent(name))
         .then(function (r) { return r.text(); })
-        .then(function (t) { current = name; text.value = t; paint(); syncScroll(); setStatus(name); })
+        .then(function (t) { current = name; text.value = t; paint(); syncScroll(); setStatus(name); dirty = false; })
         .catch(function () { setStatus('cannot load ' + name, 'err'); });
     }
     function loadFiles() {
@@ -1354,7 +1302,10 @@ refresh();
       if (timer) save();          // flush the pending edit to the old file first
       loadFile(sel.value);
     });
-    text.addEventListener('input', function () { paint(); scheduleSave(); });
+    text.addEventListener('input', function () {
+      dirty = true; lastInput = Date.now();
+      paint(); scheduleSave();
+    });
     text.addEventListener('scroll', syncScroll);
     saveBtn.addEventListener('click', save);
     // Keep editor keystrokes out of the viewer's shortcuts (3 / f / 1-9 / esc).
@@ -1382,6 +1333,15 @@ refresh();
       editor.style.width = Math.max(200, Math.min(720, e.clientX)) + 'px';
     });
     window.addEventListener('mouseup', function () { drag = false; resizer.classList.remove('dragging'); });
+
+    // Called on every SSE tick so external edits (another editor, git checkout)
+    // get picked up — but never while the user has unsaved or in-progress edits.
+    window.__reloadEditorIfClean = function () {
+      if (!current) return;
+      var editingNow = document.activeElement === text && (Date.now() - lastInput) < 2000;
+      if (dirty || editingNow) return;   // don't clobber in-progress edits
+      loadFile(current);
+    };
 
     loadFiles();
   })();
@@ -1473,6 +1433,27 @@ mod tests {
         let html = index_html("Casa <Lote 12>");
         assert!(html.contains("Casa &lt;Lote 12&gt;"));
         assert!(!html.contains("{{PROJECT_NAME}}"));
+    }
+
+    #[test]
+    fn index_html_has_favicon_and_branding() {
+        let html = index_html("proj");
+        assert!(html.contains("favicon.svg"));
+        assert!(html.contains("cadspec"));
+    }
+
+    #[test]
+    fn index_html_is_dark_only_no_theme_toggle() {
+        let html = index_html("proj");
+        assert!(!html.contains("data-theme"));
+        assert!(!html.contains("btntheme"));
+        assert!(!html.contains("prefers-color-scheme"));
+    }
+
+    #[test]
+    fn index_html_exposes_editor_reload_hook() {
+        let html = index_html("proj");
+        assert!(html.contains("__reloadEditorIfClean"));
     }
 
     #[test]

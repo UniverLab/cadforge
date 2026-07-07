@@ -874,6 +874,10 @@ fn serve_project_serves_state_and_rebuilds_on_file_change_e2e() {
     assert_eq!(svg_status, 200);
     assert!(svg_body.contains("<svg"));
 
+    let (favicon_status, favicon_body) = http_get(port, "/favicon.svg");
+    assert_eq!(favicon_status, 200);
+    assert!(favicon_body.contains("<svg"));
+
     let (missing_status, _) = http_get(port, "/does-not-exist");
     assert_eq!(missing_status, 404);
 

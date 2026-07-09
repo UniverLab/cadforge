@@ -190,6 +190,8 @@ id = "tx-001"
 position = [4.0, 3.0]
 content = "SALA"
 size = 0.2
+font = "serif"
+rotation = 15.0
 
 [[dim]]
 id = "dm-001"

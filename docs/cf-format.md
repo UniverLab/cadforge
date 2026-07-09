@@ -66,10 +66,42 @@ id = "tx-001"
 position = [4.0, 3.0]
 content = "SALA"
 size = 0.2
+align = "center"
+font = "serif"
+rotation = 15.0
+bold = true
+italic = false
 ```
 
 Every entity has a stable `id` — that is what makes plans diffable and
 lets agents target precise edits.
+
+### Text styling fields
+
+`[[text]]` entities accept four optional styling fields, all of which
+default to a plain, unrotated, monospace label when omitted:
+
+- `font` — a CSS `font-family` value, passed through verbatim to the SVG
+  renderer (default: `"monospace"`). No fonts are downloaded; the value
+  is resolved by the browser/renderer against generic CSS families and
+  whatever fonts are installed locally.
+- `rotation` — degrees, counter-clockwise, around the text anchor point
+  (default: `0`).
+- `bold` — `true`/`false` (default: `false`).
+- `italic` — `true`/`false` (default: `false`).
+
+Two limitations to keep in mind:
+
+1. `font`, `bold` and `italic` only affect the SVG/PNG preview. They are
+   **not** written to DXF — DXF has no simple equivalent short of
+   managing a `STYLE` table, which is out of scope. Only `rotation` is
+   carried through to the DXF `TEXT` entity (group code 50) and survives
+   a `build` → `import` roundtrip.
+2. Text bounding boxes and `align` anchoring are approximated using
+   monospace glyph proportions. This approximation is increasingly
+   inaccurate for non-monospace `font` values and does not account for
+   `rotation` at all, so treat computed text extents as approximate
+   whenever either field is set.
 
 ## Filled and hatched regions
 

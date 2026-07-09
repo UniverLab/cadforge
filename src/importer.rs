@@ -75,6 +75,7 @@ enum Shape {
         position: [f64; 2],
         content: String,
         size: f64,
+        rotation: f64,
     },
     Point {
         position: [f64; 2],
@@ -237,6 +238,7 @@ pub fn import_dxf(input: &Path, output_dir: &Path, layer_filter: Option<&str>) -
                         position: [e.location.x, e.location.y],
                         content: e.value.clone(),
                         size: e.text_height.max(0.1),
+                        rotation: e.rotation,
                     }),
                     EntityType::ModelPoint(e) => Some(Shape::Point {
                         position: [e.location.x, e.location.y],
@@ -741,16 +743,20 @@ fn emit_shape(shape: &Shape) -> (&'static str, String) {
             position,
             content,
             size,
-        } => (
-            "tx",
-            format!(
+            rotation,
+        } => {
+            let mut body = format!(
                 "position = [{}, {}]\ncontent = \"{}\"\nsize = {}\n",
                 n(position[0]),
                 n(position[1]),
                 escape_string(content),
                 n(*size)
-            ),
-        ),
+            );
+            if *rotation != 0.0 {
+                body.push_str(&format!("rotation = {}\n", n(*rotation)));
+            }
+            ("tx", body)
+        }
         Shape::Point { position } => (
             "pt",
             format!("position = [{}, {}]\n", n(position[0]), n(position[1])),

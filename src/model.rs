@@ -88,6 +88,10 @@ pub struct CfText {
     #[serde(default = "default_text_size")]
     pub size: f64,
     pub align: Option<TextAlign>,
+    pub font: Option<String>,
+    pub rotation: Option<f64>,
+    pub bold: Option<bool>,
+    pub italic: Option<bool>,
     #[serde(flatten)]
     pub common: CommonAttrs,
 }

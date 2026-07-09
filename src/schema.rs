@@ -110,6 +110,10 @@ position = [4.0, 3.0]
 content = "SALA"
 size = 0.25            # text height in world units
 align = "center"       # left | center | right
+font = "monospace"     # CSS font-family, SVG/PNG preview only (default: monospace)
+rotation = 0.0          # degrees, counterclockwise, about the anchor point (DXF-compatible)
+bold = false            # SVG/PNG preview only
+italic = false          # SVG/PNG preview only
 
 [[point]]              # reference marker (drawn as a cross)
 position = [3.0, 3.0]

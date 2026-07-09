@@ -184,12 +184,14 @@ impl DxfWriter {
         self.polyline(&points, true, layer, style);
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn text(
         &mut self,
         x: f64,
         y: f64,
         height: f64,
         content: &str,
+        rotation: f64,
         layer: &str,
         style: &EntityStyle,
     ) {
@@ -197,6 +199,7 @@ impl DxfWriter {
             location: Point::new(x, y, 0.0),
             text_height: height,
             value: content.to_string(),
+            rotation,
             ..Default::default()
         };
         self.add_entity(EntityType::Text(text), layer, style);
@@ -256,6 +259,7 @@ impl DxfWriter {
             (ay + by) / 2.0 + ny * text_height * 0.5,
             text_height,
             label,
+            0.0,
             layer,
             &text_style,
         );

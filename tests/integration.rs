@@ -528,6 +528,67 @@ offset = -1.2
 }
 
 #[test]
+fn import_roundtrip_preserves_text_rotation() {
+    // `rotation` on [[text]] must survive a build -> import roundtrip via the
+    // DXF TEXT group-code-50 field. Unrotated text must not gain a spurious
+    // `rotation` key (today's DXF output has none, and roundtrip fidelity
+    // should not regress for the common case).
+    let dir = Path::new("/tmp/cadspec_text_rotation_roundtrip");
+    let _ = fs::remove_dir_all(dir);
+    fs::create_dir_all(dir).unwrap();
+    fs::write(
+        dir.join("project.toml"),
+        "[project]\nname = \"rt\"\nunits = \"m\"\n\n[layers]\nplano = { file = \"plano.cf\", locked = false }\n",
+    )
+    .unwrap();
+    fs::write(
+        dir.join("plano.cf"),
+        r##"[layer]
+name = "plano"
+color = "#FFFFFF"
+
+[[text]]
+id = "tx-rotated"
+position = [1.0, 2.0]
+content = "ROTATED"
+size = 0.3
+rotation = 30.0
+
+[[text]]
+id = "tx-plain"
+position = [4.0, 2.0]
+content = "PLAIN"
+size = 0.3
+"##,
+    )
+    .unwrap();
+
+    let dxf_path = dir.join("output.dxf");
+    compile_project(dir, None, Some(&dxf_path)).unwrap();
+
+    let imported = Path::new("/tmp/cadspec_text_rotation_roundtrip_out");
+    let _ = fs::remove_dir_all(imported);
+    import_dxf(&dxf_path, imported, None).unwrap();
+    let cf = fs::read_to_string(imported.join("plano.cf")).unwrap();
+
+    assert!(
+        cf.contains("rotation = 30"),
+        "rotated text lost its rotation on roundtrip:\n{cf}"
+    );
+    let plain_block = cf.split("PLAIN").next().unwrap();
+    let plain_tx_start = plain_block.rfind("[[text]]").unwrap();
+    assert!(
+        !plain_block[plain_tx_start..].contains("rotation"),
+        "unrotated text should not gain a rotation key:\n{cf}"
+    );
+
+    compile_project(imported, None, None).unwrap();
+
+    let _ = fs::remove_dir_all(dir);
+    let _ = fs::remove_dir_all(imported);
+}
+
+#[test]
 fn import_refuses_hatch_lines_into_single_hatch() {
     // A hatch expands into many DXF pattern lines. On import they must collapse
     // back into one `[[hatch]]` (with its region + pattern/angle/scale), while a

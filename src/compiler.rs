@@ -636,6 +636,7 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
             e.position[1],
             e.size,
             &e.content,
+            e.rotation.unwrap_or(0.0),
             resolve_layer(&e.common, default_layer),
             &style,
         );

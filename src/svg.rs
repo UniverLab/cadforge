@@ -488,7 +488,11 @@ pub fn enumerate_entities(cf: &CfFile) -> Vec<EntityRecord> {
         });
     }
     for e in &cf.texts {
-        // Approximate extent from monospace glyph proportions.
+        // Approximate extent from monospace glyph proportions. This is a rough
+        // estimate even for the default monospace font, and it is only more
+        // wrong when `font` names a non-monospace family or `rotation` is set
+        // (the bbox below is axis-aligned and ignores rotation entirely), so
+        // `align` anchoring and this bbox are approximate in those cases.
         let w = 0.6 * e.size * e.content.chars().count() as f64;
         out.push(EntityRecord {
             id: e.common.id.clone(),
@@ -791,14 +795,33 @@ fn render_layer(
             _ => "start",
         };
         let font_px = (e.size * c.scale).max(1.0);
+        let font_family = xml_escape(e.font.as_deref().unwrap_or("monospace"));
+        let mut extra_attrs = String::new();
+        if e.bold == Some(true) {
+            extra_attrs.push_str(r#" font-weight="bold""#);
+        }
+        if e.italic == Some(true) {
+            extra_attrs.push_str(r#" font-style="italic""#);
+        }
+        if let Some(angle) = e.rotation {
+            if angle != 0.0 {
+                let _ = write!(
+                    extra_attrs,
+                    r#" transform="rotate({:.2}, {:.2}, {:.2})""#,
+                    -angle, px, py
+                );
+            }
+        }
         let _ = write!(
             c.out,
-            r#"<text x="{:.2}" y="{:.2}" font-size="{:.2}" font-family="monospace" text-anchor="{}" fill="{}"{}>{}</text>"#,
+            r#"<text x="{:.2}" y="{:.2}" font-size="{:.2}" font-family="{}" text-anchor="{}" fill="{}"{}{}>{}</text>"#,
             px,
             py,
             font_px,
+            font_family,
             anchor,
             s.color,
+            extra_attrs,
             id_attr(&e.common),
             xml_escape(&e.content)
         );
@@ -1110,5 +1133,56 @@ pattern = "ansi31"
         assert_eq!(grid_step(10.0), 0.5);
         assert_eq!(grid_step(30.0), 1.0);
         assert_eq!(grid_step(300.0), 10.0);
+    }
+
+    fn text_layer(extra_fields: &str) -> Vec<(String, CfFile)> {
+        let toml = format!(
+            r##"
+[layer]
+name = "test"
+color = "#FFFFFF"
+
+[[text]]
+id = "tx-1"
+position = [5.0, 5.0]
+content = "HOLA"
+size = 0.3
+{extra_fields}
+"##
+        );
+        let cf: CfFile = toml::from_str(&toml).unwrap();
+        vec![("test".to_string(), cf)]
+    }
+
+    #[test]
+    fn text_font_is_emitted_in_font_family() {
+        let svg = render_layers("demo", "m", &text_layer(r#"font = "serif""#), 1200, &[]).svg;
+        assert!(svg.contains(r#"font-family="serif""#));
+    }
+
+    #[test]
+    fn text_without_font_defaults_to_monospace() {
+        let svg = render_layers("demo", "m", &text_layer(""), 1200, &[]).svg;
+        assert!(svg.contains(r#"font-family="monospace""#));
+    }
+
+    #[test]
+    fn text_rotation_emits_negated_svg_transform() {
+        let svg = render_layers("demo", "m", &text_layer("rotation = 45.0"), 1200, &[]).svg;
+        assert!(svg.contains("transform=\"rotate(-45.00,"));
+    }
+
+    #[test]
+    fn text_bold_and_italic_emit_style_attrs() {
+        let svg = render_layers(
+            "demo",
+            "m",
+            &text_layer("bold = true\nitalic = true"),
+            1200,
+            &[],
+        )
+        .svg;
+        assert!(svg.contains(r#"font-weight="bold""#));
+        assert!(svg.contains(r#"font-style="italic""#));
     }
 }

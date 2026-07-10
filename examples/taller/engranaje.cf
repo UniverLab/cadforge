@@ -1,0 +1,43 @@
+[layer]
+name = "engranaje"
+color = "#50C8FF"
+line_weight = 0.35
+
+# Diente base; el array polar completa la corona de 16 dientes
+[[polyline]]
+id = "pl-diente"
+points = [
+    [6.193, -0.125],
+    [6.448, -0.076],
+    [6.448, 0.076],
+    [6.193, 0.125],
+]
+closed = true
+
+[[array]]
+id = "ar-corona"
+target = "pl-diente"
+mode = "polar"
+count = 16
+center = [5.0, 0.0]
+step_angle = 22.5
+
+# Círculo primitivo (referencia, discontinuo)
+[[circle]]
+id = "ci-primitivo"
+center = [5.0, 0.0]
+radius = 1.2
+style = "dashed"
+weight = 0.18
+
+# Cuerpo y agujero del eje
+[[circle]]
+id = "ci-cuerpo"
+center = [5.0, 0.0]
+radius = 1.05
+weight = 0.50
+
+[[circle]]
+id = "ci-eje"
+center = [5.0, 0.0]
+radius = 0.3

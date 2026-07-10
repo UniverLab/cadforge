@@ -4,8 +4,10 @@ use crate::color::{hex_to_24bit, hex_to_aci, weight_to_dxf};
 use crate::dxf_writer::{DxfWriter, EntityStyle};
 use crate::model::{CfFile, CommonAttrs, LineStyle};
 use crate::parser::{parse_cf, parse_project, LayerEntry, ProjectFile};
+use crate::transform::expand_cf;
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
+use serde::Serialize;
 use std::collections::HashSet;
 use std::path::Path;
 
@@ -81,7 +83,7 @@ fn load_layers(
     for (name, entry) in layers {
         let cf_path = project_dir.join(&entry.file);
         let cf = parse_cf(&cf_path).with_context(|| format!("Failed to parse layer '{}'", name))?;
-        loaded.insert(name.clone(), cf);
+        loaded.insert(name.clone(), expand_cf(&cf));
     }
     Ok(loaded)
 }
@@ -331,11 +333,15 @@ pub fn compile_project(
     let project = parse_project(&project_dir.join("project.toml"))?;
     let mut writer = DxfWriter::new();
 
-    for name in project.layers.keys() {
-        writer.add_layer(name, 7);
-    }
-
     let loaded_layers = load_layers(project_dir, &project.layers)?;
+    for name in project.layers.keys() {
+        let color = loaded_layers
+            .get(name)
+            .and_then(|cf| cf.layer_meta.as_ref())
+            .and_then(|meta| meta.color.as_deref())
+            .unwrap_or("#FFFFFF");
+        writer.add_layer(name, hex_to_aci(color));
+    }
     let issues = validate_constraints(&project, &loaded_layers);
     let strict = is_strict(&project);
     if !issues.is_empty() {
@@ -367,14 +373,14 @@ pub fn compile_project(
         .unwrap_or_else(|| project_dir.join("output.dxf"));
     writer.save(&output_path)?;
 
-    println!("✓ DXF generado: {}", output_path.display());
+    println!("✓ DXF generated: {}", output_path.display());
     println!(
-        "  {} entidades en {} capas",
+        "  {} entities in {} layers",
         total_entities,
         layer_stats.len()
     );
     for (name, count) in &layer_stats {
-        println!("    {}: {} entidades", name, count);
+        println!("    {}: {} entities", name, count);
     }
     Ok(())
 }
@@ -444,7 +450,7 @@ pub fn list_layers(project_dir: &Path) -> Result<()> {
     for (name, entry) in &project.layers {
         let cf_path = project_dir.join(&entry.file);
         let (status, color) = if cf_path.exists() {
-            let cf = parse_cf(&cf_path)?;
+            let cf = expand_cf(&parse_cf(&cf_path)?);
             let count = entity_count(&cf);
             let col = cf
                 .layer_meta
@@ -462,6 +468,77 @@ pub fn list_layers(project_dir: &Path) -> Result<()> {
         );
     }
     Ok(())
+}
+
+// ── Machine-readable report (for AI agents / tooling) ──────────────────
+
+#[derive(Serialize)]
+pub struct LayerReport {
+    pub name: String,
+    pub file: String,
+    pub entities: Option<usize>,
+    pub color: Option<String>,
+    pub locked: bool,
+    pub missing: bool,
+}
+
+#[derive(Serialize)]
+pub struct ProjectReport {
+    pub name: String,
+    pub scale: String,
+    pub units: String,
+    pub strict: bool,
+    pub total_entities: usize,
+    pub layers: Vec<LayerReport>,
+    pub issues: Vec<String>,
+}
+
+/// Build a structured validation report of the project (used by `--json` flags).
+pub fn project_report(project_dir: &Path) -> Result<ProjectReport> {
+    let project = parse_project(&project_dir.join("project.toml"))?;
+    let mut loaded: IndexMap<String, CfFile> = IndexMap::new();
+    let mut layers = Vec::with_capacity(project.layers.len());
+    let mut total = 0usize;
+
+    for (name, entry) in &project.layers {
+        let cf_path = project_dir.join(&entry.file);
+        if cf_path.exists() {
+            let cf = expand_cf(
+                &parse_cf(&cf_path).with_context(|| format!("Failed to parse layer '{}'", name))?,
+            );
+            let count = entity_count(&cf);
+            total += count;
+            layers.push(LayerReport {
+                name: name.clone(),
+                file: entry.file.clone(),
+                entities: Some(count),
+                color: cf.layer_meta.as_ref().and_then(|m| m.color.clone()),
+                locked: entry.locked,
+                missing: false,
+            });
+            loaded.insert(name.clone(), cf);
+        } else {
+            layers.push(LayerReport {
+                name: name.clone(),
+                file: entry.file.clone(),
+                entities: None,
+                color: None,
+                locked: entry.locked,
+                missing: true,
+            });
+        }
+    }
+
+    let issues = validate_constraints(&project, &loaded);
+    Ok(ProjectReport {
+        name: project.project.name.clone(),
+        scale: project.project.scale.clone(),
+        units: project.project.units.clone(),
+        strict: is_strict(&project),
+        total_entities: total,
+        layers,
+        issues,
+    })
 }
 
 // ── Internal ────────────────────────────────────────────────────────────
@@ -559,6 +636,7 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
             e.position[1],
             e.size,
             &e.content,
+            e.rotation.unwrap_or(0.0),
             resolve_layer(&e.common, default_layer),
             &style,
         );
@@ -576,12 +654,19 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
 
     for e in &cf.dims {
         let style = resolve_style(&e.common);
+        let dist = ((e.to[0] - e.from[0]).powi(2) + (e.to[1] - e.from[1]).powi(2)).sqrt();
+        let label =
+            crate::svg::format_dim_label(dist, e.precision.unwrap_or(2) as usize, e.show_units, "")
+                .trim_end()
+                .to_string();
         writer.dim_linear(
             e.from[0],
             e.from[1],
             e.to[0],
             e.to[1],
             e.offset,
+            &label,
+            e.text_size.unwrap_or(0.25),
             resolve_layer(&e.common, default_layer),
             &style,
         );
@@ -593,8 +678,27 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
         let style = resolve_style(&e.common);
         let spacing = 0.1 * e.scale; // base spacing scaled
 
-        if let Some(boundary) = resolve_boundary(&e.boundary, cf) {
-            writer.hatch(&boundary, e.angle, spacing, layer, &style);
+        let boundary = if let Some(ref boundary_id) = e.boundary {
+            let resolved = resolve_boundary(boundary_id, cf);
+            if resolved.is_none() {
+                warn_unresolved_boundary(
+                    "hatch",
+                    e.common.id.as_deref(),
+                    boundary_id,
+                    default_layer,
+                );
+            }
+            resolved
+        } else {
+            e.points
+                .as_ref()
+                .map(|p| p.iter().map(|v| (v[0], v[1])).collect())
+        };
+
+        if let Some(boundary) = boundary {
+            writer.hatch(
+                &boundary, e.angle, spacing, e.scale, &e.pattern, layer, &style,
+            );
         }
     }
 
@@ -604,7 +708,16 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
         let style = resolve_style(&e.common);
 
         let pts = if let Some(ref boundary_id) = e.boundary {
-            resolve_boundary(boundary_id, cf)
+            let resolved = resolve_boundary(boundary_id, cf);
+            if resolved.is_none() {
+                warn_unresolved_boundary(
+                    "fill",
+                    e.common.id.as_deref(),
+                    boundary_id,
+                    default_layer,
+                );
+            }
+            resolved
         } else {
             e.points
                 .as_ref()
@@ -615,6 +728,26 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
             writer.solid_fill(&pts, layer, &style);
         }
     }
+}
+
+/// Warn (without failing the build) when a hatch/fill references a boundary id
+/// that does not resolve to any closed polyline or rect in the same layer file.
+/// Boundaries are resolved per layer file; a reference to an id defined in a
+/// different layer will not resolve and the region is skipped. Shared with
+/// `svg.rs` so preview/SVG rendering warns on the same condition as `build`.
+pub(crate) fn warn_unresolved_boundary(
+    kind: &str,
+    entity_id: Option<&str>,
+    boundary: &str,
+    layer: &str,
+) {
+    let who = entity_id
+        .map(|id| format!("'{}'", id))
+        .unwrap_or_else(|| "<unnamed>".to_string());
+    eprintln!(
+        "warning: {kind} {who} in layer '{layer}' references boundary '{boundary}', \
+         which is not a closed polyline or rect in this layer — region skipped"
+    );
 }
 
 /// Resolve a boundary id to a list of (x,y) points from polylines or rects in the file.

@@ -1,10 +1,10 @@
-//! Scaffold — generates a new CADforge project structure.
+//! Scaffold — generates a new CADspec project structure.
 
 use anyhow::{bail, Result};
 use std::fs;
 use std::path::Path;
 
-/// Create a new CADforge project in the given directory.
+/// Create a new CADspec project in the given directory.
 pub fn create_project(name: &str, parent: &Path) -> Result<()> {
     let project_dir = parent.join(name);
     if project_dir.exists() {
@@ -16,16 +16,20 @@ pub fn create_project(name: &str, parent: &Path) -> Result<()> {
 
     println!("✓ Project '{}' created at {}", name, project_dir.display());
     println!("  → project.toml");
-    println!("  → muros.cf");
-    println!("  → puertas.cf");
-    println!("  → mobiliario.cf");
-    println!("  → cotas.cf");
+    println!("  → shapes.cf");
+    println!("  → curves.cf");
+    println!("  → annotations.cf");
     println!("  → .gitignore");
-    println!("\n  Run `cadforge build --path {}` to compile.", name);
+    println!(
+        "\n  Run `cadspec serve --path {}` for a live preview,",
+        name
+    );
+    println!("  or `cadspec build --path {}` to compile to DXF.", name);
+    println!("  `cadspec schema` prints the .cf language reference.");
     Ok(())
 }
 
-/// Initialize a CADforge project in the current directory.
+/// Initialize a CADspec project in the current directory.
 pub fn init_project(dir: &Path) -> Result<()> {
     if dir.join("project.toml").exists() {
         bail!("project.toml already exists in '{}'", dir.display());
@@ -37,13 +41,14 @@ pub fn init_project(dir: &Path) -> Result<()> {
         .unwrap_or("project");
     write_project_files(dir, name)?;
 
-    println!("✓ Initialized CADforge project in {}", dir.display());
+    println!("✓ Initialized CADspec project in {}", dir.display());
     println!("  → project.toml");
-    println!("  → muros.cf");
-    println!("  → puertas.cf");
-    println!("  → mobiliario.cf");
-    println!("  → cotas.cf");
+    println!("  → shapes.cf");
+    println!("  → curves.cf");
+    println!("  → annotations.cf");
     println!("  → .gitignore");
+    println!("\n  Run `cadspec serve` for a live preview.");
+    println!("  `cadspec schema` prints the .cf language reference.");
     Ok(())
 }
 
@@ -55,127 +60,115 @@ scale = "1:100"
 units = "m"
 
 [layers]
-muros = {{ file = "muros.cf", locked = false }}
-puertas = {{ file = "puertas.cf", locked = false }}
-mobiliario = {{ file = "mobiliario.cf", locked = false }}
-cotas = {{ file = "cotas.cf", locked = false }}
+shapes = {{ file = "shapes.cf", locked = false }}
+curves = {{ file = "curves.cf", locked = false }}
+annotations = {{ file = "annotations.cf", locked = false }}
 "#
     );
     fs::write(project_dir.join("project.toml"), project_toml)?;
 
-    let gitignore = "# CADforge output\noutput.dxf\npreview.png\npreview.meta.json\n\n# Rust build artifacts\ntarget/\n";
+    let gitignore = "# CADspec output\noutput.dxf\npreview.png\npreview.svg\npreview.meta.json\n\n# CADspec serve daemon (pid + logs)\n.cadspec/\n\n# Rust build artifacts\ntarget/\n";
     fs::write(project_dir.join(".gitignore"), gitignore)?;
 
-    let muros_cf = r##"[layer]
-name = "muros"
+    let shapes_cf = r##"[layer]
+name = "shapes"
 color = "#FFFFFF"
-line_weight = 0.50
+line_weight = 0.35
 
-# Perímetro exterior
+# Rectangle from its bottom-left origin.
+# `extrude` gives it height in the 3D view (the `3D` button) — here, a box.
+[[rect]]
+id = "rc-001"
+origin = [0.0, 0.0]
+width = 4.0
+height = 4.0
+extrude = 3.0
+
+# Closed polyline (a polygon) — also used as a hatch boundary
 [[polyline]]
-id = "pl-perimetro"
-points = [[0.0, 0.0], [8.0, 0.0], [8.0, 6.0], [0.0, 6.0]]
+id = "pl-001"
+points = [[6.0, 0.0], [10.0, 0.0], [11.0, 2.0], [8.0, 4.0], [6.0, 2.0]]
 closed = true
-weight = 0.50
 
-# Muro divisorio horizontal
-[[line]]
-id = "ln-div-h"
-from = [0.0, 3.5]
-to = [5.0, 3.5]
-weight = 0.35
+# Reference marker (drawn as a cross)
+[[point]]
+id = "pt-001"
+position = [2.0, 2.0]
 
-# Muro divisorio vertical
-[[line]]
-id = "ln-div-v"
-from = [5.0, 0.0]
-to = [5.0, 6.0]
-weight = 0.35
+# Pattern fill inside the polygon above
+[[hatch]]
+id = "ht-001"
+boundary = "pl-001"
+pattern = "ansi31"
+angle = 45.0
 "##;
-    fs::write(project_dir.join("muros.cf"), muros_cf)?;
+    fs::write(project_dir.join("shapes.cf"), shapes_cf)?;
 
-    let puertas_cf = r##"[layer]
-name = "puertas"
-color = "#00CC44"
-
-# Puerta principal
-[[arc]]
-id = "ar-puerta-principal"
-center = [0.0, 2.5]
-radius = 0.9
-from_angle = 0.0
-to_angle = 90.0
-
-# Puerta interior
-[[arc]]
-id = "ar-puerta-int"
-center = [5.0, 4.5]
-radius = 0.8
-from_angle = 90.0
-to_angle = 180.0
-"##;
-    fs::write(project_dir.join("puertas.cf"), puertas_cf)?;
-
-    let mobiliario_cf = r##"[layer]
-name = "mobiliario"
+    let curves_cf = r##"[layer]
+name = "curves"
 color = "#4488FF"
+line_weight = 0.25
 
-# Mesa sala
-[[rect]]
-id = "rc-mesa"
-origin = [1.5, 4.5]
-width = 2.0
-height = 1.0
+# Full circle — extruded into a cylinder in the 3D view
+[[circle]]
+id = "ci-001"
+center = [2.0, 8.0]
+radius = 1.5
+extrude = 2.0
 
-# Cama dormitorio
-[[rect]]
-id = "rc-cama"
-origin = [5.5, 4.0]
-width = 2.0
-height = 1.5
+# Half arc (angles in degrees, counterclockwise from +X)
+[[arc]]
+id = "ar-001"
+center = [6.0, 8.0]
+radius = 1.5
+from_angle = 0.0
+to_angle = 180.0
 
-# Etiquetas
-[[text]]
-id = "tx-sala"
-position = [2.0, 5.0]
-content = "SALA"
-size = 0.25
+# A small circle repeated around a center (polar array).
+# The array expands at build time into ci-sat, ci-sat@1, ci-sat@2, …
+[[circle]]
+id = "ci-sat"
+center = [11.5, 8.0]
+radius = 0.4
 
-[[text]]
-id = "tx-dorm"
-position = [6.0, 5.0]
-content = "DORMITORIO"
-size = 0.20
-
-[[text]]
-id = "tx-cocina"
-position = [2.0, 1.5]
-content = "COCINA"
-size = 0.20
+[[array]]
+target = "ci-sat"
+mode = "polar"
+count = 6
+center = [10.0, 8.0]
+step_angle = 60.0
 "##;
-    fs::write(project_dir.join("mobiliario.cf"), mobiliario_cf)?;
+    fs::write(project_dir.join("curves.cf"), curves_cf)?;
 
-    let cotas_cf = r##"[layer]
-name = "cotas"
+    let annotations_cf = r##"[layer]
+name = "annotations"
 color = "#FF4444"
+line_weight = 0.18
 
-# Cota horizontal total
+# Linear dimension — the measured distance is labeled automatically
 [[dim]]
-id = "dm-ancho"
+id = "dm-001"
 type = "linear"
 from = [0.0, 0.0]
-to = [8.0, 0.0]
+to = [4.0, 0.0]
 offset = -0.8
 
-# Cota vertical total
-[[dim]]
-id = "dm-alto"
-type = "linear"
-from = [0.0, 0.0]
-to = [0.0, 6.0]
-offset = -0.8
+# Text labels (size is in world units, not points)
+[[text]]
+id = "tx-shapes"
+position = [2.0, 4.4]
+content = "shapes"
+size = 0.4
+align = "center"
+
+[[text]]
+id = "tx-curves"
+position = [4.0, 10.2]
+content = "curves"
+size = 0.4
+align = "center"
 "##;
-    fs::write(project_dir.join("cotas.cf"), cotas_cf)?;
+    fs::write(project_dir.join("annotations.cf"), annotations_cf)?;
 
     Ok(())
 }
@@ -187,7 +180,7 @@ mod tests {
 
     #[test]
     fn creates_project_structure() {
-        let tmp = PathBuf::from("/tmp/cadforge_test_new");
+        let tmp = PathBuf::from("/tmp/cadspec_test_new");
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(&tmp).unwrap();
 
@@ -195,18 +188,19 @@ mod tests {
 
         let project_dir = tmp.join("mi-proyecto");
         assert!(project_dir.join("project.toml").exists());
-        assert!(project_dir.join("muros.cf").exists());
-        assert!(project_dir.join("puertas.cf").exists());
-        assert!(project_dir.join("mobiliario.cf").exists());
-        assert!(project_dir.join("cotas.cf").exists());
+        assert!(project_dir.join("shapes.cf").exists());
+        assert!(project_dir.join("curves.cf").exists());
+        assert!(project_dir.join("annotations.cf").exists());
+        assert!(!project_dir.join("AGENTS.md").exists());
         assert!(project_dir.join(".gitignore").exists());
 
         let content = fs::read_to_string(project_dir.join("project.toml")).unwrap();
         assert!(content.contains("mi-proyecto"));
-        assert!(content.contains("muros.cf"));
+        assert!(content.contains("shapes.cf"));
 
         let gitignore = fs::read_to_string(project_dir.join(".gitignore")).unwrap();
         assert!(gitignore.contains("output.dxf"));
+        assert!(gitignore.contains("preview.svg"));
         assert!(gitignore.contains("target/"));
 
         let _ = fs::remove_dir_all(&tmp);
@@ -214,7 +208,7 @@ mod tests {
 
     #[test]
     fn fails_if_dir_exists() {
-        let tmp = PathBuf::from("/tmp/cadforge_test_exists");
+        let tmp = PathBuf::from("/tmp/cadspec_test_exists");
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(tmp.join("existing")).unwrap();
 
@@ -226,17 +220,16 @@ mod tests {
 
     #[test]
     fn init_in_existing_dir() {
-        let tmp = PathBuf::from("/tmp/cadforge_test_init");
+        let tmp = PathBuf::from("/tmp/cadspec_test_init");
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(&tmp).unwrap();
 
         init_project(&tmp).unwrap();
 
         assert!(tmp.join("project.toml").exists());
-        assert!(tmp.join("muros.cf").exists());
-        assert!(tmp.join("puertas.cf").exists());
-        assert!(tmp.join("mobiliario.cf").exists());
-        assert!(tmp.join("cotas.cf").exists());
+        assert!(tmp.join("shapes.cf").exists());
+        assert!(tmp.join("curves.cf").exists());
+        assert!(tmp.join("annotations.cf").exists());
         assert!(tmp.join(".gitignore").exists());
 
         let _ = fs::remove_dir_all(&tmp);
@@ -244,7 +237,7 @@ mod tests {
 
     #[test]
     fn init_fails_if_project_exists() {
-        let tmp = PathBuf::from("/tmp/cadforge_test_init_exists");
+        let tmp = PathBuf::from("/tmp/cadspec_test_init_exists");
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(&tmp).unwrap();
         fs::write(tmp.join("project.toml"), "").unwrap();

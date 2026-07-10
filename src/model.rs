@@ -15,6 +15,11 @@ pub struct CommonAttrs {
     pub visible: bool,
     #[serde(default)]
     pub locked: bool,
+    /// Extrusion height in world units for the 3D view. `None`/0 stays flat;
+    /// a closed shape becomes a solid, a line/open polyline becomes a wall.
+    pub extrude: Option<f64>,
+    /// Base elevation (Z) for the 3D view. Defaults to 0 (the ground plane).
+    pub elevation: Option<f64>,
 }
 
 fn default_true() -> bool {
@@ -83,6 +88,10 @@ pub struct CfText {
     #[serde(default = "default_text_size")]
     pub size: f64,
     pub align: Option<TextAlign>,
+    pub font: Option<String>,
+    pub rotation: Option<f64>,
+    pub bold: Option<bool>,
+    pub italic: Option<bool>,
     #[serde(flatten)]
     pub common: CommonAttrs,
 }
@@ -114,6 +123,12 @@ pub struct CfDim {
     pub to: [f64; 2],
     #[serde(default = "default_offset")]
     pub offset: f64,
+    /// Label height in world units (default 0.25).
+    pub text_size: Option<f64>,
+    /// Decimal places for the measured value (default 2).
+    pub precision: Option<u32>,
+    /// Append the project units to the label (default true).
+    pub show_units: Option<bool>,
     #[serde(flatten)]
     pub common: CommonAttrs,
 }
@@ -132,7 +147,12 @@ pub enum DimType {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct CfHatch {
-    pub boundary: String,
+    /// Reference to a closed polyline or rect id, or inline points.
+    #[serde(default)]
+    pub boundary: Option<String>,
+    /// Inline points (alternative to boundary reference). Used by DXF import to
+    /// round-trip a hatch's region without depending on a separate boundary id.
+    pub points: Option<Vec<[f64; 2]>>,
     #[serde(default = "default_pattern")]
     pub pattern: String,
     #[serde(default = "default_scale")]
@@ -160,6 +180,50 @@ pub struct CfGroup {
     pub common: CommonAttrs,
 }
 
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ArrayMode {
+    Linear,
+    Polar,
+}
+
+/// Repeats target primitives: linear (offset per copy) or polar (rotation
+/// around a center — spiral stairs, gear teeth, radial columns).
+#[derive(Debug, Clone, Deserialize)]
+pub struct CfArray {
+    /// Single target id (alternative to `targets`).
+    pub target: Option<String>,
+    /// Multiple target ids.
+    pub targets: Option<Vec<String>>,
+    pub mode: ArrayMode,
+    /// Total number of instances, including the original.
+    pub count: usize,
+    /// Linear: displacement per copy.
+    pub offset: Option<[f64; 2]>,
+    /// Polar: rotation center.
+    pub center: Option<[f64; 2]>,
+    /// Polar: degrees per copy (counterclockwise).
+    pub step_angle: Option<f64>,
+    /// Polar: rotate each copy's geometry (true) or only orbit it (false).
+    #[serde(default = "default_true")]
+    pub rotate_items: bool,
+    #[serde(flatten)]
+    pub common: CommonAttrs,
+}
+
+/// Mirrors target primitives across an axis defined by two points.
+#[derive(Debug, Clone, Deserialize)]
+pub struct CfMirror {
+    /// Single target id (alternative to `targets`).
+    pub target: Option<String>,
+    /// Multiple target ids.
+    pub targets: Option<Vec<String>>,
+    /// Mirror axis: two points [[x1, y1], [x2, y2]].
+    pub axis: [[f64; 2]; 2],
+    #[serde(flatten)]
+    pub common: CommonAttrs,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct CfFill {
     /// Reference to a closed polyline or rect id, or inline points.
@@ -168,6 +232,41 @@ pub struct CfFill {
     pub points: Option<Vec<[f64; 2]>>,
     #[serde(flatten)]
     pub common: CommonAttrs,
+}
+
+// ── 3D solids (CSG) ────────────────────────────────────────────────────
+
+/// A named 3D primitive solid for the extruded/CSG view. Referenced by id from
+/// `[[boolean]]`. 3D-only — solids do not appear in the 2D plan or DXF.
+#[derive(Debug, Clone, Deserialize)]
+pub struct CfSolid {
+    pub id: String,
+    /// `box` | `cylinder`.
+    pub shape: String,
+    /// Placement: box minimum corner, or cylinder base-circle center. Default origin.
+    pub at: Option<[f64; 3]>,
+    /// Box dimensions [sx, sy, sz].
+    pub size: Option<[f64; 3]>,
+    /// Cylinder radius.
+    pub radius: Option<f64>,
+    /// Cylinder height.
+    pub height: Option<f64>,
+    /// Cylinder facet count (default 40).
+    pub segments: Option<usize>,
+    pub color: Option<String>,
+}
+
+/// A CSG operation combining named solids. The result is rendered; the solids
+/// it consumes (`base` + `tools`) are not drawn on their own.
+#[derive(Debug, Clone, Deserialize)]
+pub struct CfBoolean {
+    pub id: Option<String>,
+    /// `difference` | `union` | `intersection`.
+    pub op: String,
+    pub base: String,
+    #[serde(default)]
+    pub tools: Vec<String>,
+    pub color: Option<String>,
 }
 
 // ── Layer-level metadata ───────────────────────────────────────────────
@@ -211,4 +310,12 @@ pub struct CfFile {
     pub fills: Vec<CfFill>,
     #[serde(default, rename = "group")]
     pub groups: Vec<CfGroup>,
+    #[serde(default, rename = "array")]
+    pub arrays: Vec<CfArray>,
+    #[serde(default, rename = "mirror")]
+    pub mirrors: Vec<CfMirror>,
+    #[serde(default, rename = "solid")]
+    pub solids: Vec<CfSolid>,
+    #[serde(default, rename = "boolean")]
+    pub booleans: Vec<CfBoolean>,
 }

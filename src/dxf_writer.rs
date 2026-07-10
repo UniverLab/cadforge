@@ -3,9 +3,15 @@
 use anyhow::Result;
 use dxf::entities::{Entity, EntityType, LwPolyline};
 use dxf::enums::AcadVersion;
-use dxf::tables::Layer;
-use dxf::{Color, Drawing, LwPolylineVertex, Point};
+use dxf::tables::{AppId, Layer};
+use dxf::{Color, Drawing, LwPolylineVertex, Point, XData, XDataItem};
 use std::path::Path;
+
+/// XDATA application name stamped on the pattern lines a hatch expands into, so
+/// the DXF importer can recognize and re-fuse them back into a single `[[hatch]]`
+/// (instead of dozens of stray `[[line]]`s). Only lines this tool emits carry
+/// the tag, so import never mistakes a foreign DXF's lines for a hatch.
+pub const HATCH_XDATA_APP: &str = "CADSPEC_HATCH";
 
 /// Optional visual attributes applied to any entity.
 #[derive(Default, Clone)]
@@ -24,6 +30,9 @@ impl EntityStyle {
 /// Builder for constructing a DXF drawing from primitives.
 pub struct DxfWriter {
     drawing: Drawing,
+    /// Monotonic id assigned to each hatch so its expanded pattern lines can be
+    /// grouped back together on import.
+    hatch_group_seq: i32,
 }
 
 impl DxfWriter {
@@ -36,7 +45,17 @@ impl DxfWriter {
         drawing.add_line_type(Self::make_line_type("DOTTED", &[0.0, -0.25]));
         drawing.add_line_type(Self::make_line_type("DASHDOT", &[0.5, -0.25, 0.0, -0.25]));
 
-        Self { drawing }
+        // Register the APPID our hatch pattern lines stamp XDATA under, so
+        // strict readers don't have to fall back on undeclared-app tolerance.
+        drawing.add_app_id(AppId {
+            name: HATCH_XDATA_APP.to_string(),
+            ..Default::default()
+        });
+
+        Self {
+            drawing,
+            hatch_group_seq: 0,
+        }
     }
 
     fn make_line_type(name: &str, pattern: &[f64]) -> dxf::tables::LineType {
@@ -51,7 +70,13 @@ impl DxfWriter {
     }
 
     /// Add a named layer with an ACI color index (1-255).
+    /// Re-adding an existing layer updates its color instead of duplicating
+    /// the LAYER table record.
     pub fn add_layer(&mut self, name: &str, color_index: u8) {
+        if let Some(existing) = self.drawing.layers_mut().find(|l| l.name == name) {
+            existing.color = Color::from_index(color_index);
+            return;
+        }
         let layer = Layer {
             name: name.to_string(),
             color: Color::from_index(color_index),
@@ -62,7 +87,8 @@ impl DxfWriter {
 
     // ── Single entry point for adding entities ─────────────────────────
 
-    fn add_entity(&mut self, entity_type: EntityType, layer: &str, style: &EntityStyle) {
+    /// Build a styled entity (layer + color/weight/line-type) without adding it.
+    fn styled_entity(entity_type: EntityType, layer: &str, style: &EntityStyle) -> Entity {
         let mut entity = Entity::new(entity_type);
         entity.common.layer = layer.to_string();
         if let Some(c) = style.color_24bit {
@@ -74,7 +100,12 @@ impl DxfWriter {
         if let Some(lt) = &style.line_type {
             entity.common.line_type_name = lt.clone();
         }
-        self.drawing.add_entity(entity);
+        entity
+    }
+
+    fn add_entity(&mut self, entity_type: EntityType, layer: &str, style: &EntityStyle) {
+        self.drawing
+            .add_entity(Self::styled_entity(entity_type, layer, style));
     }
 
     // ── Public primitive methods ───────────────────────────────────────
@@ -153,12 +184,14 @@ impl DxfWriter {
         self.polyline(&points, true, layer, style);
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn text(
         &mut self,
         x: f64,
         y: f64,
         height: f64,
         content: &str,
+        rotation: f64,
         layer: &str,
         style: &EntityStyle,
     ) {
@@ -166,6 +199,7 @@ impl DxfWriter {
             location: Point::new(x, y, 0.0),
             text_height: height,
             value: content.to_string(),
+            rotation,
             ..Default::default()
         };
         self.add_entity(EntityType::Text(text), layer, style);
@@ -187,31 +221,48 @@ impl DxfWriter {
         x2: f64,
         y2: f64,
         offset: f64,
+        label: &str,
+        text_height: f64,
         layer: &str,
         style: &EntityStyle,
     ) {
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        let len = (dx * dx + dy * dy).sqrt();
+        if len < 1e-9 {
+            return;
+        }
+        // Offset along the normal, matching the preview renderer
+        let (nx, ny) = (-dy / len, dx / len);
+        let (ax, ay) = (x1 + nx * offset, y1 + ny * offset);
+        let (bx, by) = (x2 + nx * offset, y2 + ny * offset);
+
         let dim = dxf::entities::RotatedDimension {
             definition_point_2: Point::new(x1, y1, 0.0),
             definition_point_3: Point::new(x2, y2, 0.0),
-            insertion_point: Point::new((x1 + x2) / 2.0, y1 + offset, 0.0),
+            insertion_point: Point::new((ax + bx) / 2.0, (ay + by) / 2.0, 0.0),
+            rotation_angle: dy.atan2(dx).to_degrees(),
             ..Default::default()
         };
         self.add_entity(EntityType::RotatedDimension(dim), layer, style);
 
         // Also emit dimension lines and text as explicit entities for compatibility
-        let dist = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt();
-        let text_val = format!("{:.2}", dist);
-        let mid_x = (x1 + x2) / 2.0;
-        let mid_y = (y1 + y2) / 2.0 + offset;
-
         // Extension lines
-        self.line(x1, y1, x1, y1 + offset, layer, style);
-        self.line(x2, y2, x2, y2 + offset, layer, style);
+        self.line(x1, y1, ax, ay, layer, style);
+        self.line(x2, y2, bx, by, layer, style);
         // Dimension line
-        self.line(x1, y1 + offset, x2, y2 + offset, layer, style);
-        // Dimension text
+        self.line(ax, ay, bx, by, layer, style);
+        // Dimension text, raised half its height off the dimension line
         let text_style = EntityStyle::default();
-        self.text(mid_x, mid_y + 0.05, 0.1, &text_val, layer, &text_style);
+        self.text(
+            (ax + bx) / 2.0 + nx * text_height * 0.5,
+            (ay + by) / 2.0 + ny * text_height * 0.5,
+            text_height,
+            label,
+            0.0,
+            layer,
+            &text_style,
+        );
     }
 
     /// Save the drawing to a DXF file.
@@ -241,20 +292,45 @@ impl DxfWriter {
         }
     }
 
-    /// Generate hatch pattern lines within a rectangular boundary.
+    /// Generate hatch pattern lines within a boundary polygon.
     /// `boundary` is a list of (x,y) points forming a closed polygon.
     /// `angle` is in degrees, `spacing` is distance between lines.
+    ///
+    /// `scale` and `pattern` are the source `[[hatch]]` values, carried on each
+    /// generated line as XDATA (alongside the boundary and a group id) so the
+    /// importer can re-fuse the lines into one `[[hatch]]` on a DXF round-trip.
+    #[allow(clippy::too_many_arguments)]
     pub fn hatch(
         &mut self,
         boundary: &[(f64, f64)],
         angle: f64,
         spacing: f64,
+        scale: f64,
+        pattern: &str,
         layer: &str,
         style: &EntityStyle,
     ) {
         if boundary.len() < 3 {
             return;
         }
+
+        // XDATA stamped on every pattern line of this hatch: group id, source
+        // angle/scale/pattern, then the boundary polygon vertices. All lines of
+        // one hatch share the same payload, so any of them can rebuild it.
+        self.hatch_group_seq += 1;
+        let mut items = vec![
+            XDataItem::Long(self.hatch_group_seq),
+            XDataItem::Real(angle),
+            XDataItem::Real(scale),
+            XDataItem::Str(pattern.to_string()),
+        ];
+        for &(x, y) in boundary {
+            items.push(XDataItem::WorldSpacePosition(Point::new(x, y, 0.0)));
+        }
+        let xdata = XData {
+            application_name: HATCH_XDATA_APP.to_string(),
+            items,
+        };
 
         // Compute bounding box
         let (min_x, max_x, min_y, max_y) = bounding_box(boundary);
@@ -284,7 +360,11 @@ impl DxfWriter {
 
             // Clip line to boundary polygon
             if let Some((cx1, cy1, cx2, cy2)) = clip_line_to_polygon(x1, y1, x2, y2, boundary) {
-                self.line(cx1, cy1, cx2, cy2, layer, style);
+                let line =
+                    dxf::entities::Line::new(Point::new(cx1, cy1, 0.0), Point::new(cx2, cy2, 0.0));
+                let mut entity = Self::styled_entity(EntityType::Line(line), layer, style);
+                entity.common.x_data.push(xdata.clone());
+                self.drawing.add_entity(entity);
             }
         }
     }
@@ -401,7 +481,7 @@ mod tests {
         w.circle(5.0, 5.0, 2.0, "MUROS", &s);
         w.rect(1.0, 1.0, 3.0, 4.0, "MUROS", &s);
 
-        let path = PathBuf::from("/tmp/cadforge_test_basic.dxf");
+        let path = PathBuf::from("/tmp/cadspec_test_basic.dxf");
         w.save(&path).unwrap();
         assert!(path.exists());
     }
@@ -417,7 +497,7 @@ mod tests {
         };
         w.line(0.0, 0.0, 1.0, 1.0, "TEST", &style);
 
-        let path = PathBuf::from("/tmp/cadforge_test_styled.dxf");
+        let path = PathBuf::from("/tmp/cadspec_test_styled.dxf");
         w.save(&path).unwrap();
         assert!(path.exists());
     }

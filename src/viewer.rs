@@ -17,7 +17,7 @@ pub fn view_project(project_dir: &Path, layer_filter: Option<&str>) -> Result<()
                 }
             })
             .collect::<String>();
-        std::env::temp_dir().join(format!("cadforge-view-{}.dxf", sanitized))
+        std::env::temp_dir().join(format!("cadspec-view-{}.dxf", sanitized))
     } else {
         project_dir.join("output.dxf")
     };
@@ -29,11 +29,11 @@ pub fn view_project(project_dir: &Path, layer_filter: Option<&str>) -> Result<()
 }
 
 fn open_file(path: &Path) -> Result<()> {
-    if let Ok(custom) = std::env::var("CADFORGE_VIEWER_CMD") {
+    if let Ok(custom) = std::env::var("CADSPEC_VIEWER_CMD") {
         let status = Command::new(&custom)
             .arg(path)
             .status()
-            .with_context(|| format!("Failed to run CADFORGE_VIEWER_CMD='{}'", custom))?;
+            .with_context(|| format!("Failed to run CADSPEC_VIEWER_CMD='{}'", custom))?;
         if !status.success() {
             return Err(anyhow!(
                 "Custom viewer command failed for {} (exit code: {:?})",

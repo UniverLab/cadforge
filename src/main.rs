@@ -1,20 +1,24 @@
 use anyhow::{bail, Result};
-use cadforge::compiler::{check_project, compile_project, list_layers};
-use cadforge::config::{config_set, config_show};
-use cadforge::fmt::format_project;
-use cadforge::importer::import_dxf;
-use cadforge::preview::generate_preview;
-use cadforge::scaffold::{create_project, init_project};
-use cadforge::viewer::view_project;
-use cadforge::watch::watch_project;
-use clap::{Parser, Subcommand};
+use cadspec::compiler::{check_project, compile_project, list_layers, project_report};
+use cadspec::config::{config_set, config_show};
+use cadspec::fmt::format_project;
+use cadspec::importer::import_dxf;
+use cadspec::preview::{
+    generate_gltf, generate_plano, generate_preview, PreviewOutputs, PreviewView,
+};
+use cadspec::scaffold::{create_project, init_project};
+use cadspec::schema::print_schema;
+use cadspec::serve::{serve_daemon, serve_project, serve_stop};
+use cadspec::viewer::view_project;
+use cadspec::watch::watch_project;
+use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(
-    name = "cadforge",
+    name = "cadspec",
     version,
-    about = "Architecture as Code — declarative geometry → DXF"
+    about = "CAD as code — declarative geometry → DXF"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -23,12 +27,12 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Create a new CADforge project
+    /// Create a new CADspec project
     New {
         /// Project name (creates a directory with this name)
         name: String,
     },
-    /// Initialize CADforge in the current directory
+    /// Initialize CADspec in the current directory
     Init,
     /// Compile project (.cf files) → DXF output
     Build {
@@ -50,28 +54,67 @@ enum Commands {
         /// Project directory (defaults to current dir)
         #[arg(short, long)]
         path: Option<PathBuf>,
+        /// Emit a machine-readable JSON report
+        #[arg(long)]
+        json: bool,
     },
     /// List project layers with status
     Layers {
         /// Project directory (defaults to current dir)
         #[arg(short, long)]
         path: Option<PathBuf>,
+        /// Emit a machine-readable JSON report
+        #[arg(long)]
+        json: bool,
     },
-    /// Generate PNG preview + metadata JSON for AI agents
+    /// Generate preview (PNG + metadata JSON, or SVG) for AI agents
     Preview {
         /// Project directory (defaults to current dir)
         #[arg(short, long)]
         path: Option<PathBuf>,
         /// Image width in pixels
-        #[arg(short, long, default_value = "2048")]
+        #[arg(short, long, default_value = "1600")]
         width: u32,
-        /// Image height in pixels
-        #[arg(short, long, default_value = "1536")]
+        /// Image height in pixels (PNG only; SVG derives it from content)
+        #[arg(short = 'H', long, default_value = "1200")]
         height: u32,
         /// Render only a specific layer
         #[arg(short, long)]
         layer: Option<String>,
+        /// Output format
+        #[arg(short, long, value_enum, default_value_t = PreviewFormat::Png)]
+        format: PreviewFormat,
+        /// Highlight entities by id (comma-separated) with labeled markers
+        #[arg(long, value_delimiter = ',')]
+        highlight: Vec<String>,
+        /// Render the extruded 3D view instead of the flat plan
+        #[arg(long = "3d")]
+        three_d: bool,
+        /// Render a named plano (drawing sheet) defined in project.toml
+        #[arg(long)]
+        plano: Option<String>,
     },
+    /// Live preview server — browser auto-reloads when .cf files change.
+    /// Runs detached in the background by default; use --foreground to stay attached.
+    Serve {
+        /// Project directory (defaults to current dir)
+        #[arg(short, long)]
+        path: Option<PathBuf>,
+        /// Port to listen on
+        #[arg(long, default_value = "4377")]
+        port: u16,
+        /// Open the browser automatically
+        #[arg(long)]
+        open: bool,
+        /// Stay in the foreground (stream logs, stop with Ctrl+C) instead of daemonizing
+        #[arg(short = 'f', long)]
+        foreground: bool,
+        /// Stop the background server running for this project
+        #[arg(long)]
+        stop: bool,
+    },
+    /// Print the .cf language reference (markdown, for humans and AI agents)
+    Schema,
     /// Format .cf files (sort keys, normalize whitespace)
     Fmt {
         /// Project directory (defaults to current dir)
@@ -87,7 +130,7 @@ enum Commands {
         #[arg(short, long)]
         path: Option<PathBuf>,
     },
-    /// Import a DXF file into CADforge project files
+    /// Import a DXF file into CADspec project files
     Import {
         /// Input DXF file
         input: PathBuf,
@@ -107,11 +150,23 @@ enum Commands {
         #[arg(short, long)]
         layer: Option<String>,
     },
-    /// Global cadforge configuration
+    /// Global cadspec configuration
     Config {
         #[command(subcommand)]
         command: ConfigCommands,
     },
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum PreviewFormat {
+    /// Raster PNG + preview.meta.json
+    Png,
+    /// Vector SVG (real text, dimensions, hatches)
+    Svg,
+    /// Both PNG and SVG
+    All,
+    /// Self-contained glTF of the 3D solids (`scene.gltf`)
+    Gltf,
 }
 
 #[derive(Subcommand)]
@@ -147,23 +202,90 @@ fn main() -> Result<()> {
                 compile_project(&dir, layer.as_deref(), output.as_deref())
             }
         }
-        Commands::Check { path } => {
+        Commands::Check { path, json } => {
             let dir = resolve_project_dir(path)?;
-            check_project(&dir)?;
-            Ok(())
+            if json {
+                let report = project_report(&dir)?;
+                println!("{}", serde_json::to_string_pretty(&report)?);
+                if report.strict && !report.issues.is_empty() {
+                    bail!(
+                        "Check failed: {} constraint violation(s) with strict = true",
+                        report.issues.len()
+                    );
+                }
+                Ok(())
+            } else {
+                check_project(&dir)?;
+                Ok(())
+            }
         }
-        Commands::Layers { path } => {
+        Commands::Layers { path, json } => {
             let dir = resolve_project_dir(path)?;
-            list_layers(&dir)
+            if json {
+                let report = project_report(&dir)?;
+                println!("{}", serde_json::to_string_pretty(&report)?);
+                Ok(())
+            } else {
+                list_layers(&dir)
+            }
         }
         Commands::Preview {
             path,
             width,
             height,
             layer,
+            format,
+            highlight,
+            three_d,
+            plano,
         } => {
             let dir = resolve_project_dir(path)?;
-            generate_preview(&dir, width, height, layer.as_deref())
+            if matches!(format, PreviewFormat::Gltf) {
+                generate_gltf(&dir, layer.as_deref())
+            } else {
+                let outputs = PreviewOutputs {
+                    png: matches!(format, PreviewFormat::Png | PreviewFormat::All),
+                    svg: matches!(format, PreviewFormat::Svg | PreviewFormat::All),
+                };
+                if let Some(name) = plano {
+                    generate_plano(&dir, &name, width, height, outputs)
+                } else {
+                    let view = if three_d {
+                        PreviewView::ThreeD
+                    } else {
+                        PreviewView::Plan
+                    };
+                    generate_preview(
+                        &dir,
+                        width,
+                        height,
+                        layer.as_deref(),
+                        &highlight,
+                        outputs,
+                        view,
+                    )
+                }
+            }
+        }
+        Commands::Serve {
+            path,
+            port,
+            open,
+            foreground,
+            stop,
+        } => {
+            let dir = resolve_project_dir(path)?;
+            if stop {
+                serve_stop(&dir, port)
+            } else if foreground {
+                serve_project(&dir, port, open)
+            } else {
+                serve_daemon(&dir, port, open)
+            }
+        }
+        Commands::Schema => {
+            print_schema();
+            Ok(())
         }
         Commands::Fmt { path, check } => {
             let dir = resolve_project_dir(path)?;
@@ -196,7 +318,7 @@ fn resolve_project_dir(path: Option<PathBuf>) -> Result<PathBuf> {
     let dir = path.unwrap_or_else(|| PathBuf::from("."));
     if !dir.join("project.toml").exists() {
         bail!(
-            "No project.toml found in '{}'. Run `cadforge new` to create a project.",
+            "No project.toml found in '{}'. Run `cadspec new` to create a project.",
             dir.display()
         );
     }

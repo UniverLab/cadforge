@@ -1,11 +1,11 @@
 [package]
-name = "cadforge"
-version = "0.1.0-beta.2"
+name = "cadspec"
+version = "0.1.0-beta.3"
 edition = "2021"
-description = "Architecture as Code — deterministic geometry engine for reproducible architectural design"
+description = "CAD as code — deterministic geometry engine for reproducible CAD drawings"
 license = "MIT"
-homepage = "https://github.com/UniverLab/cadforge"
-repository = "https://github.com/UniverLab/cadforge"
+homepage = "https://github.com/UniverLab/cadspec"
+repository = "https://github.com/UniverLab/cadspec"
 publish = true
 exclude = ["crates/**"]
 
@@ -18,5 +18,11 @@ serde_json = "1.0"
 toml = "0.8"
 toml_edit = "0.22"
 indexmap = { version = "2", features = ["serde"] }
-tiny-skia = "0.11"
 notify = "6.1"
+resvg = "0.47.0"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "symbols"

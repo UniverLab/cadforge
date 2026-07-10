@@ -1,10 +1,10 @@
 #!/bin/sh
-# install.sh — download and install cadforge from GitHub Releases
-# Usage: curl -fsSL https://raw.githubusercontent.com/UniverLab/cadforge/main/scripts/install.sh | sh
+# install.sh — download and install cadspec from GitHub Releases
+# Usage: curl -fsSL https://raw.githubusercontent.com/UniverLab/cadspec/main/scripts/install.sh | sh
 set -eu
 
-REPO="UniverLab/cadforge"
-BINARY="cadforge"
+REPO="UniverLab/cadspec"
+BINARY="cadspec"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 
 info() { printf '  \033[1;34m%s\033[0m %s\n' "$1" "$2"; }
@@ -33,7 +33,7 @@ TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
 # ============================================================
-# 1. Install cadforge
+# 1. Install cadspec
 # ============================================================
 
 # --- resolve version ---
@@ -58,6 +58,29 @@ URL="https://github.com/$REPO/releases/download/${TAG}/${ARCHIVE}"
 info "download" "$URL"
 HTTP_CODE=$(curl -fSL -w '%{http_code}' -o "$TMPDIR/$ARCHIVE" "$URL" 2>/dev/null) || true
 [ "$HTTP_CODE" = "200" ] || error "Download failed (HTTP $HTTP_CODE). Check that $TAG exists for $TARGET at:\n  $URL"
+
+# --- verify checksum ---
+# Match against SHA256SUMS.txt from the same release. Missing sums file (older
+# releases) or no sha256 tool → skip; a present-but-mismatched checksum is fatal.
+SUMS_URL="https://github.com/$REPO/releases/download/${TAG}/SHA256SUMS.txt"
+if curl -fsSL -o "$TMPDIR/SHA256SUMS.txt" "$SUMS_URL" 2>/dev/null; then
+  EXPECTED=$(awk -v f="$ARCHIVE" '$2 == f { print $1 }' "$TMPDIR/SHA256SUMS.txt" | head -1)
+  [ -n "$EXPECTED" ] || error "No checksum listed for $ARCHIVE in SHA256SUMS.txt"
+  if command -v sha256sum >/dev/null 2>&1; then
+    ACTUAL=$(sha256sum "$TMPDIR/$ARCHIVE" | awk '{ print $1 }')
+  elif command -v shasum >/dev/null 2>&1; then
+    ACTUAL=$(shasum -a 256 "$TMPDIR/$ARCHIVE" | awk '{ print $1 }')
+  else
+    ACTUAL=""
+    info "checksum" "no sha256 tool found — skipping verification"
+  fi
+  if [ -n "$ACTUAL" ]; then
+    [ "$ACTUAL" = "$EXPECTED" ] || error "Checksum mismatch for $ARCHIVE (expected $EXPECTED, got $ACTUAL)"
+    info "checksum" "verified"
+  fi
+else
+  info "checksum" "SHA256SUMS.txt not found for $TAG — skipping verification"
+fi
 
 # --- extract ---
 tar xzf "$TMPDIR/$ARCHIVE" -C "$TMPDIR"
@@ -88,7 +111,7 @@ if [ -n "$PATHS_TO_ADD" ]; then
     if [ -f "$profile" ]; then
       for dir in $PATHS_TO_ADD; do
         if ! grep -q "export PATH=\"$dir:\$PATH\"" "$profile" 2>/dev/null; then
-          printf '\n# Added by cadforge installer\nexport PATH="%s:$PATH"\n' "$dir" >> "$profile"
+          printf '\n# Added by cadspec installer\nexport PATH="%s:$PATH"\n' "$dir" >> "$profile"
           info "updated" "$profile"
         fi
       done
@@ -97,9 +120,31 @@ if [ -n "$PATHS_TO_ADD" ]; then
 fi
 
 # ============================================================
-# 3. Verify
+# 3. Install the cadspec agent skill (optional)
+# ============================================================
+# Teaches AI agents how to drive cadspec. Skipped when npx is unavailable or
+# SKIP_SKILL is set; a failure here never fails the binary install above.
+
+SKILL="cadspec"
+SKILLS_REPO="https://github.com/UniverLab/skills"
+
+if [ -n "${SKIP_SKILL:-}" ]; then
+  info "skill" "skipped (SKIP_SKILL set)"
+elif command -v npx >/dev/null 2>&1; then
+  info "skill" "adding '$SKILL' (npx skills add)"
+  if npx -y skills add "$SKILLS_REPO" --skill "$SKILL" </dev/null; then
+    info "skill" "installed"
+  else
+    info "skill" "skipped — add later with: npx skills add $SKILLS_REPO --skill $SKILL"
+  fi
+else
+  info "skill" "npx not found — add later with: npx skills add $SKILLS_REPO --skill $SKILL"
+fi
+
+# ============================================================
+# 4. Verify
 # ============================================================
 
 info "done" "$($INSTALL_DIR/$BINARY --version 2>/dev/null || echo "$BINARY installed")"
 echo ""
-info "ready" "Run 'cadforge --help' to get started!"
+info "ready" "Run 'cadspec --help' to get started!"

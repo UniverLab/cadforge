@@ -1,13 +1,13 @@
-//! Schema — the `.cf` language reference, printable via `cadforge schema`.
+//! Schema — the `.cf` language reference, printable via `cadspec schema`.
 //!
 //! This is the self-discovery entry point for AI agents and humans alike: one
 //! command dumps the complete format so any agent can generate valid `.cf`
 //! files without prior training.
 
 /// Complete `.cf` + `project.toml` reference in markdown.
-pub const CF_REFERENCE: &str = r##"# CADforge `.cf` Language Reference
+pub const CF_REFERENCE: &str = r##"# CADspec `.cf` Language Reference
 
-CADforge projects are plain TOML. A project is a directory with a `project.toml`
+CADspec projects are plain TOML. A project is a directory with a `project.toml`
 plus one `.cf` file per layer. Geometry is declared, never drawn: the same files
 always compile to the same DXF.
 
@@ -28,6 +28,24 @@ puertas = { file = "puertas.cf", locked = false }
 puertas.parent = "muros"        # child bbox must fit inside parent bbox
 cotas.belongs_to = "muros"      # child primitives reference parent ids via belongs_to
 "muros → puertas" = "spatial_dependency"  # movement warning (informational)
+
+# Planos (drawing sheets): named views of the model with a title block.
+# Render with `cadspec preview --plano <name>`, or pick them in the viewer's
+# Planos panel (under Layers).
+[[plano]]
+name = "P-01"
+view = "plan"          # plan | iso | front | back | left | right | top | section
+size = [420.0, 297.0]  # sheet size in mm (default A3 landscape)
+scale = "1:50"         # label shown in the rótulo (defaults to project scale)
+title = "Planta baja"  # rótulo title (defaults to name)
+rotulo = "rotulo.cf"   # optional: a .cf drawn as a custom title block
+
+[[plano]]
+name = "C-01"
+view = "section"       # a cut, viewed along the cut axis
+cut_axis = "z"         # x | y | z
+cut_at = 1.5           # plane position along the axis
+keep = "min"           # min (default) keeps the ≤ side, max keeps the ≥ side
 ```
 
 ## Layer files (`.cf`)
@@ -53,7 +71,13 @@ style = "solid"        # solid | dashed | dotted | dashdot
 visible = true
 locked = false
 belongs_to = "id"      # reference to a primitive id in the parent layer
+extrude = 3.0          # 3D view: extrusion height (world units). closed shape → solid,
+                       #          line / open polyline → wall. 0/omitted = flat
+elevation = 0.0        # 3D view: base height (Z) the shape sits at (default 0)
 ```
+
+The 2D plan is unaffected by `extrude`/`elevation`; they only shape the
+extruded 3D view (`cadspec preview --3d`, or the viewer's `3D` button).
 
 ### Primitives
 
@@ -86,6 +110,10 @@ position = [4.0, 3.0]
 content = "SALA"
 size = 0.25            # text height in world units
 align = "center"       # left | center | right
+font = "monospace"     # CSS font-family, SVG/PNG preview only (default: monospace)
+rotation = 0.0          # degrees, counterclockwise, about the anchor point (DXF-compatible)
+bold = false            # SVG/PNG preview only
+italic = false          # SVG/PNG preview only
 
 [[point]]              # reference marker (drawn as a cross)
 position = [3.0, 3.0]
@@ -140,6 +168,37 @@ targets = ["pl-nave", "ar-puerta"]
 axis = [[2.5, 0.0], [2.5, 1.0]]
 ```
 
+### 3D solids (CSG)
+
+For the 3D view you can also declare true solids and combine them with boolean
+operations (constructive solid geometry). Solids and booleans are **3D-only** —
+they do not appear in the 2D plan or the DXF. (For simple extrusions, prefer
+`extrude`/`elevation` on a 2D primitive; use solids when you need booleans.)
+
+```toml
+[[solid]]              # a named 3D primitive (referenced by booleans via id)
+id = "cubo"
+shape = "box"          # box | cylinder
+at = [0.0, 0.0, 0.0]   # box: minimum corner; cylinder: base-circle center
+size = [4.0, 4.0, 4.0] # box dimensions [sx, sy, sz]
+
+[[solid]]
+id = "broca"
+shape = "cylinder"
+at = [2.0, 2.0, -0.5]
+radius = 1.2
+height = 5.0
+segments = 48          # facet count (default 40)
+
+[[boolean]]            # combine solids — the result is rendered, the inputs are not
+id = "cubo-perforado"
+op = "difference"      # difference (cut) | union | intersection
+base = "cubo"
+tools = ["broca"]      # subtracted from / merged with the base, in order
+```
+
+A cube with a hole = a `box` minus a `cylinder` via `op = "difference"`.
+
 ## Conventions
 
 - Coordinates are world units (see `units`), Y grows upward, origin at [0, 0].
@@ -151,27 +210,27 @@ axis = [[2.5, 0.0], [2.5, 1.0]]
 ## Workflow
 
 ```bash
-cadforge serve            # live preview in the browser (auto-reloads on save)
-cadforge build            # compile to output.dxf
-cadforge check --json     # machine-readable validation report
-cadforge layers --json    # machine-readable layer listing
-cadforge preview          # PNG + metadata JSON (--format svg for vector)
-cadforge preview --highlight ln-001,tx-002   # amber markers around those ids
-cadforge fmt              # normalize .cf formatting
+cadspec serve            # live preview in the browser (auto-reloads on save)
+cadspec build            # compile to output.dxf
+cadspec check --json     # machine-readable validation report
+cadspec layers --json    # machine-readable layer listing
+cadspec preview          # PNG + metadata JSON (--format svg for vector)
+cadspec preview --highlight ln-001,tx-002   # amber markers around those ids
+cadspec fmt              # normalize .cf formatting
 ```
 
-The feedback loop for agents: edit `.cf` → run `cadforge check --json` to
-validate → run `cadforge preview` and **look at `preview.png`** — it is a
+The feedback loop for agents: edit `.cf` → run `cadspec check --json` to
+validate → run `cadspec preview` and **look at `preview.png`** — it is a
 faithful render (real text, measured dimension labels, hatches, line styles).
 `preview.meta.json` maps every entity id to world and pixel bounding boxes.
 After editing specific entities, re-render with
-`cadforge preview --highlight <ids>` to visually confirm the change landed
+`cadspec preview --highlight <ids>` to visually confirm the change landed
 where intended (highlighted entities get labeled amber markers).
 
-For humans, `cadforge serve` adds: click any entity to inspect its source
+For humans, `cadspec serve` adds: click any entity to inspect its source
 TOML block (copyable as an agent prompt for targeted edits), a layer panel
-with on/ghost/off states (trace one floor over another), and a 3D stacked
-view of the layers.
+with on/ghost/off states (trace one floor over another), and a `3D` button
+that renders the extruded view (see `extrude`/`elevation` above).
 "##;
 
 /// Print the `.cf` language reference to stdout.

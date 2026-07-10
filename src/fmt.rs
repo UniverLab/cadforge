@@ -53,7 +53,7 @@ pub fn format_project(project_dir: &Path, check_only: bool) -> Result<()> {
     }
 
     if check_only && changed > 0 {
-        anyhow::bail!("{changed} file(s) need formatting. Run `cadforge fmt` to fix.");
+        anyhow::bail!("{changed} file(s) need formatting. Run `cadspec fmt` to fix.");
     }
     if !check_only {
         println!("✓ {changed} file(s) formatted");
@@ -350,5 +350,24 @@ mod tests {
     fn returns_original_on_parse_error() {
         let input = "invalid [[[ toml";
         assert_eq!(format_source(input), input);
+    }
+
+    #[test]
+    fn preserves_text_font_rotation_bold_italic() {
+        let input = "[layer]\nname = \"x\"\n\n[[text]]\nid = \"tx-1\"\nposition = [1.0, 2.0]\ncontent = \"hi\"\nsize = 0.3\nfont = \"serif\"\nrotation = 30.0\nbold = true\nitalic = true\n";
+        let once = format_source(input);
+        let twice = format_source(&once);
+        assert_eq!(once, twice, "fmt not idempotent for text styling fields");
+        for needle in [
+            "font = \"serif\"",
+            "rotation = 30.0",
+            "bold = true",
+            "italic = true",
+        ] {
+            assert!(
+                once.contains(needle),
+                "expected {needle:?} to survive fmt, got:\n{once}"
+            );
+        }
     }
 }

@@ -333,11 +333,15 @@ pub fn compile_project(
     let project = parse_project(&project_dir.join("project.toml"))?;
     let mut writer = DxfWriter::new();
 
-    for name in project.layers.keys() {
-        writer.add_layer(name, 7);
-    }
-
     let loaded_layers = load_layers(project_dir, &project.layers)?;
+    for name in project.layers.keys() {
+        let color = loaded_layers
+            .get(name)
+            .and_then(|cf| cf.layer_meta.as_ref())
+            .and_then(|meta| meta.color.as_deref())
+            .unwrap_or("#FFFFFF");
+        writer.add_layer(name, hex_to_aci(color));
+    }
     let issues = validate_constraints(&project, &loaded_layers);
     let strict = is_strict(&project);
     if !issues.is_empty() {
@@ -369,14 +373,14 @@ pub fn compile_project(
         .unwrap_or_else(|| project_dir.join("output.dxf"));
     writer.save(&output_path)?;
 
-    println!("✓ DXF generado: {}", output_path.display());
+    println!("✓ DXF generated: {}", output_path.display());
     println!(
-        "  {} entidades en {} capas",
+        "  {} entities in {} layers",
         total_entities,
         layer_stats.len()
     );
     for (name, count) in &layer_stats {
-        println!("    {}: {} entidades", name, count);
+        println!("    {}: {} entities", name, count);
     }
     Ok(())
 }
@@ -632,6 +636,7 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
             e.position[1],
             e.size,
             &e.content,
+            e.rotation.unwrap_or(0.0),
             resolve_layer(&e.common, default_layer),
             &style,
         );
@@ -673,8 +678,27 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
         let style = resolve_style(&e.common);
         let spacing = 0.1 * e.scale; // base spacing scaled
 
-        if let Some(boundary) = resolve_boundary(&e.boundary, cf) {
-            writer.hatch(&boundary, e.angle, spacing, layer, &style);
+        let boundary = if let Some(ref boundary_id) = e.boundary {
+            let resolved = resolve_boundary(boundary_id, cf);
+            if resolved.is_none() {
+                warn_unresolved_boundary(
+                    "hatch",
+                    e.common.id.as_deref(),
+                    boundary_id,
+                    default_layer,
+                );
+            }
+            resolved
+        } else {
+            e.points
+                .as_ref()
+                .map(|p| p.iter().map(|v| (v[0], v[1])).collect())
+        };
+
+        if let Some(boundary) = boundary {
+            writer.hatch(
+                &boundary, e.angle, spacing, e.scale, &e.pattern, layer, &style,
+            );
         }
     }
 
@@ -684,7 +708,16 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
         let style = resolve_style(&e.common);
 
         let pts = if let Some(ref boundary_id) = e.boundary {
-            resolve_boundary(boundary_id, cf)
+            let resolved = resolve_boundary(boundary_id, cf);
+            if resolved.is_none() {
+                warn_unresolved_boundary(
+                    "fill",
+                    e.common.id.as_deref(),
+                    boundary_id,
+                    default_layer,
+                );
+            }
+            resolved
         } else {
             e.points
                 .as_ref()
@@ -695,6 +728,26 @@ fn compile_cf(writer: &mut DxfWriter, cf: &CfFile, default_layer: &str) {
             writer.solid_fill(&pts, layer, &style);
         }
     }
+}
+
+/// Warn (without failing the build) when a hatch/fill references a boundary id
+/// that does not resolve to any closed polyline or rect in the same layer file.
+/// Boundaries are resolved per layer file; a reference to an id defined in a
+/// different layer will not resolve and the region is skipped. Shared with
+/// `svg.rs` so preview/SVG rendering warns on the same condition as `build`.
+pub(crate) fn warn_unresolved_boundary(
+    kind: &str,
+    entity_id: Option<&str>,
+    boundary: &str,
+    layer: &str,
+) {
+    let who = entity_id
+        .map(|id| format!("'{}'", id))
+        .unwrap_or_else(|| "<unnamed>".to_string());
+    eprintln!(
+        "warning: {kind} {who} in layer '{layer}' references boundary '{boundary}', \
+         which is not a closed polyline or rect in this layer — region skipped"
+    );
 }
 
 /// Resolve a boundary id to a list of (x,y) points from polylines or rects in the file.

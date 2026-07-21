@@ -533,7 +533,10 @@ mod tests {
     fn deserialize_array_polar() {
         let json = r#"{"targets":["col1","col2"],"mode":"polar","count":8,"center":[0,0],"step_angle":45.0}"#;
         let a: CfArray = serde_json::from_str(json).unwrap();
-        assert_eq!(a.targets, Some(vec!["col1".to_string(), "col2".to_string()]));
+        assert_eq!(
+            a.targets,
+            Some(vec!["col1".to_string(), "col2".to_string()])
+        );
         assert_eq!(a.mode, ArrayMode::Polar);
         assert_eq!(a.center, Some([0.0, 0.0]));
         assert_eq!(a.step_angle, Some(45.0));
@@ -628,10 +631,7 @@ mod tests {
     fn deserialize_text_align_variants() {
         let variants = ["left", "center", "right"];
         for v in variants {
-            let json = format!(
-                r#"{{"position":[0,0],"content":"x","align":"{}"}}"#,
-                v
-            );
+            let json = format!(r#"{{"position":[0,0],"content":"x","align":"{}"}}"#, v);
             let t: CfText = serde_json::from_str(&json).unwrap();
             assert!(t.align.is_some(), "failed for {}", v);
         }

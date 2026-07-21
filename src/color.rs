@@ -428,8 +428,8 @@ mod tests {
 
     #[test]
     fn aci_to_hex_out_of_range_returns_white() {
-        assert_eq!(aci_to_hex(0), "#FFFFFF");   // BYBLOCK
-        // 256 is out of u8 range, so test boundary at 255 and 0
+        assert_eq!(aci_to_hex(0), "#FFFFFF"); // BYBLOCK
+                                              // 256 is out of u8 range, so test boundary at 255 and 0
         assert_eq!(aci_to_hex(0), "#FFFFFF"); // below valid range
         assert_eq!(aci_to_hex(255), "#FFFFFF"); // 255 IS valid, and happens to be white
     }
@@ -458,7 +458,10 @@ mod tests {
     #[test]
     fn aci_to_hex_always_has_hash_prefix() {
         for index in [1, 50, 100, 150, 200, 255] {
-            assert!(aci_to_hex(index).starts_with('#'), "ACI {index} missing # prefix");
+            assert!(
+                aci_to_hex(index).starts_with('#'),
+                "ACI {index} missing # prefix"
+            );
         }
     }
 
